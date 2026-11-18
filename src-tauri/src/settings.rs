@@ -30,6 +30,8 @@ pub struct Settings {
     pub lyrics_style: String,
     /// One of [`BACKGROUND_STYLES`].
     pub background_style: String,
+    /// Look up a sharper cover online when the player's artwork is small.
+    pub hd_artwork: bool,
 }
 
 impl Default for Settings {
@@ -46,6 +48,7 @@ impl Default for Settings {
             hide_player_bar: false,
             lyrics_style: LYRICS_STYLES[0].into(),
             background_style: BACKGROUND_STYLES[0].into(),
+            hd_artwork: true,
         }
     }
 }
@@ -63,7 +66,11 @@ impl Settings {
         self.blur = self.blur.min(60);
         self.offset_ms = self.offset_ms.clamp(-2000, 2000);
         self.auto_close_minutes = self.auto_close_minutes.min(24 * 60);
-        if self.monitor.as_deref().is_some_and(|m| m.trim().is_empty() || m.len() > 256) {
+        if self
+            .monitor
+            .as_deref()
+            .is_some_and(|m| m.trim().is_empty() || m.len() > 256)
+        {
             self.monitor = None;
         }
         one_of(&mut self.lyrics_style, LYRICS_STYLES);
@@ -118,7 +125,9 @@ mod tests {
     #[test]
     fn merge_and_clamp() {
         let s = Settings::default();
-        let m = s.merged(&json!({"blur": 99, "offsetMs": -5000, "monitor": "X", "unknown": 1})).unwrap();
+        let m = s
+            .merged(&json!({"blur": 99, "offsetMs": -5000, "monitor": "X", "unknown": 1}))
+            .unwrap();
         assert_eq!(m.blur, 60);
         assert_eq!(m.offset_ms, -2000);
         assert_eq!(m.monitor.as_deref(), Some("X"));
@@ -134,15 +143,26 @@ mod tests {
         assert_eq!(s.word_size, 136);
         assert_eq!(s.lyrics_style, "cinematic");
         assert_eq!(s.background_style, "artwork");
+        assert!(s.hd_artwork);
     }
 
     #[test]
     fn styles_are_validated() {
         let s = Settings::default();
-        let m = s.merged(&json!({"lyricsStyle": "karaoke", "backgroundStyle": "split"})).unwrap();
-        assert_eq!((m.lyrics_style.as_str(), m.background_style.as_str()), ("karaoke", "split"));
-        let m = m.merged(&json!({"lyricsStyle": "disco", "backgroundStyle": ""})).unwrap();
-        assert_eq!((m.lyrics_style.as_str(), m.background_style.as_str()), ("cinematic", "artwork"));
+        let m = s
+            .merged(&json!({"lyricsStyle": "karaoke", "backgroundStyle": "split"}))
+            .unwrap();
+        assert_eq!(
+            (m.lyrics_style.as_str(), m.background_style.as_str()),
+            ("karaoke", "split")
+        );
+        let m = m
+            .merged(&json!({"lyricsStyle": "disco", "backgroundStyle": ""}))
+            .unwrap();
+        assert_eq!(
+            (m.lyrics_style.as_str(), m.background_style.as_str()),
+            ("cinematic", "artwork")
+        );
         assert!(s.merged(&json!({"lyricsStyle": 3})).is_err());
     }
 }

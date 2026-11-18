@@ -75,6 +75,7 @@ let settings: Settings = {
   hidePlayerBar: false,
   lyricsStyle: "cinematic",
   backgroundStyle: "artwork",
+  hdArtwork: true,
 };
 let np: NowPlaying | null = null;
 let artCache: { key: string; art: Artwork } | null = null;
@@ -351,6 +352,10 @@ window.addEventListener("keydown", (e) => {
       toast(hidePlayerBar ? "Player bar hidden" : "Player bar shown");
       break;
     }
+    case ",":
+      e.preventDefault();
+      openSettings();
+      break;
     case "s":
     case "S": {
       const lyricsStyle = nextOf(LYRICS_STYLES, settings.lyricsStyle);
@@ -372,6 +377,12 @@ function nextOf<T>(list: readonly T[], current: T): T {
   return list[(list.indexOf(current) + 1) % list.length];
 }
 
+function openSettings() {
+  if (demo) toast("Settings open in the app, not in the browser demo");
+  else invoke("open_settings").catch((e) => console.warn("open_settings", e));
+}
+
+$("btn-settings").addEventListener("click", openSettings);
 $("btn-play").addEventListener("click", () => send("togglePlayPause"));
 $("btn-prev").addEventListener("click", () => send("previous"));
 $("btn-next").addEventListener("click", () => send("next"));

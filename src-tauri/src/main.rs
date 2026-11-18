@@ -2,6 +2,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod artwork;
+mod artwork_hd;
 mod hub;
 mod lyrics;
 mod media;
@@ -56,7 +57,12 @@ fn get_state(state: State<'_, AppState>) -> AppSnapshot {
     let now_playing = state.now_playing.lock().unwrap().clone();
     let lyrics = state.lyrics.lock().unwrap().clone();
     let settings = state.settings.lock().unwrap().clone();
-    AppSnapshot { now_playing, lyrics, settings, detection_paused: state.detection_paused.load(Ordering::Relaxed) }
+    AppSnapshot {
+        now_playing,
+        lyrics,
+        settings,
+        detection_paused: state.detection_paused.load(Ordering::Relaxed),
+    }
 }
 
 /// The lyrics page calls this as soon as its script runs (see `safety.rs`).
@@ -90,7 +96,11 @@ fn get_settings(state: State<'_, AppState>) -> Settings {
 }
 
 #[tauri::command]
-async fn update_settings(app: AppHandle, state: State<'_, AppState>, patch: serde_json::Value) -> Result<Settings, String> {
+async fn update_settings(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    patch: serde_json::Value,
+) -> Result<Settings, String> {
     let (old, new) = {
         let mut s = state.settings.lock().unwrap();
         let old = s.clone();
@@ -105,12 +115,17 @@ async fn update_settings(app: AppHandle, state: State<'_, AppState>, patch: serd
 
     if old.launch_at_login != new.launch_at_login {
         let al = app.autolaunch();
-        let res = if new.launch_at_login { al.enable() } else { al.disable() };
+        let res = if new.launch_at_login {
+            al.enable()
+        } else {
+            al.disable()
+        };
         if let Err(e) = res {
             log::warn!("autostart change failed: {e}");
         }
     }
-    if (old.monitor != new.monitor || old.mirror_all != new.mirror_all) && ui::lyrics_visible(&app) {
+    if (old.monitor != new.monitor || old.mirror_all != new.mirror_all) && ui::lyrics_visible(&app)
+    {
         ui::show_lyrics(&app);
     }
     let _ = app.emit("settings", &new);
@@ -176,22 +191,32 @@ fn setup_tray(app: &tauri::App) -> tauri::Result<()> {
         .tooltip("Halo Lyrics")
         .menu(&menu)
         .show_menu_on_left_click(false)
-        .on_menu_event(move |app, event| match event.id().as_ref() {
-            "open" => ui::spawn(app, ui::show_lyrics),
-            "settings" => ui::spawn(app, ui::open_settings),
-            "pause" => {
-                let paused = pause_item.is_checked().unwrap_or(false);
-                app.state::<AppState>().detection_paused.store(paused, Ordering::Relaxed);
-                log::info!("detection paused: {paused}");
+        .on_menu_event(move |app, event| {
+            log::info!("tray menu: {}", event.id().as_ref());
+            match event.id().as_ref() {
+                "open" => ui::spawn(app, ui::show_lyrics),
+                "settings" => ui::spawn(app, ui::open_settings),
+                "pause" => {
+                    let paused = pause_item.is_checked().unwrap_or(false);
+                    app.state::<AppState>()
+                        .detection_paused
+                        .store(paused, Ordering::Relaxed);
+                    log::info!("detection paused: {paused}");
+                }
+                "quit" => {
+                    app.state::<AppState>().power.set(false);
+                    app.exit(0);
+                }
+                _ => {}
             }
-            "quit" => {
-                app.state::<AppState>().power.set(false);
-                app.exit(0);
-            }
-            _ => {}
         })
         .on_tray_icon_event(|tray, event| {
-            if let TrayIconEvent::Click { button: MouseButton::Left, button_state: MouseButtonState::Up, .. } = event {
+            if let TrayIconEvent::Click {
+                button: MouseButton::Left,
+                button_state: MouseButtonState::Up,
+                ..
+            } = event
+            {
                 ui::spawn(tray.app_handle(), ui::toggle_lyrics);
             }
         });
@@ -210,7 +235,10 @@ fn install_panic_logger() {
         let thread = std::thread::current();
         let name = thread.name().unwrap_or("unnamed");
         #[cfg(debug_assertions)]
-        log::error!("crash on thread '{name}': {info}\n{}", std::backtrace::Backtrace::force_capture());
+        log::error!(
+            "crash on thread '{name}': {info}\n{}",
+            std::backtrace::Backtrace::force_capture()
+        );
         #[cfg(not(debug_assertions))]
         log::error!("crash on thread '{name}': {info}");
         log::logger().flush();
@@ -224,9 +252,11 @@ fn main() {
 
     let log_plugin = tauri_plugin_log::Builder::new()
         .clear_targets()
-        .target(tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::LogDir {
-            file_name: Some("halo-lyrics".into()),
-        }))
+        .target(tauri_plugin_log::Target::new(
+            tauri_plugin_log::TargetKind::LogDir {
+                file_name: Some("halo-lyrics".into()),
+            },
+        ))
         .max_file_size(1_000_000)
         .rotation_strategy(tauri_plugin_log::RotationStrategy::KeepOne)
         .level(log::LevelFilter::Info)
@@ -235,7 +265,9 @@ fn main() {
         .level_for("reqwest", log::LevelFilter::Warn)
         .level_for("hyper_util", log::LevelFilter::Warn);
     #[cfg(debug_assertions)]
-    let log_plugin = log_plugin.target(tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::Stdout));
+    let log_plugin = log_plugin.target(tauri_plugin_log::Target::new(
+        tauri_plugin_log::TargetKind::Stdout,
+    ));
 
     tauri::Builder::default()
         // Must be the first plugin: a second launch hands over to the running
@@ -291,14 +323,21 @@ fn main() {
             let settings_path = config_dir.join("settings.json");
             let settings = Settings::load(&settings_path);
             let override_dir = paths.audio_dir().ok().map(|d| d.join("Lyrics"));
-            let lyrics_service = Arc::new(LyricsService::new(data_dir.join("lyrics-cache"), override_dir));
+            let lyrics_service = Arc::new(LyricsService::new(
+                data_dir.join("lyrics-cache"),
+                override_dir,
+            ));
             let source = media::platform_source(paths.resource_dir().ok());
             log::info!("Halo Lyrics {} starting", app.package_info().version);
 
             // Keep the OS autostart entry in step with the setting.
             let al = app.autolaunch();
             if al.is_enabled().unwrap_or(false) != settings.launch_at_login {
-                let _ = if settings.launch_at_login { al.enable() } else { al.disable() };
+                let _ = if settings.launch_at_login {
+                    al.enable()
+                } else {
+                    al.disable()
+                };
             }
 
             app.manage(AppState {

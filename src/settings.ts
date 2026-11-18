@@ -9,14 +9,14 @@ import type { MonitorInfo, Settings } from "./types.ts";
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
 type NumKey = "wordSize" | "blur" | "offsetMs";
-type BoolKey = "mirrorAll" | "autoOpen" | "launchAtLogin" | "hidePlayerBar";
+type BoolKey = "mirrorAll" | "autoOpen" | "launchAtLogin" | "hidePlayerBar" | "hdArtwork";
 
 const ranges: Record<NumKey, (v: number) => string> = {
   wordSize: (v) => `${v}px`,
   blur: (v) => `${v}`,
   offsetMs: (v) => `${v > 0 ? "+" : ""}${v} ms`,
 };
-const checks: BoolKey[] = ["mirrorAll", "autoOpen", "launchAtLogin", "hidePlayerBar"];
+const checks: BoolKey[] = ["mirrorAll", "autoOpen", "launchAtLogin", "hidePlayerBar", "hdArtwork"];
 /** Radio groups whose `name` is the settings key. */
 const radios = ["lyricsStyle", "backgroundStyle"] as const;
 

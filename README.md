@@ -19,6 +19,7 @@ Built with [Tauri 2](https://tauri.app) (Rust backend) and plain TypeScript + Vi
 - **Smart title cleanup.** Handles YouTube titles like `Artist - Song (Official Video)`, VEVO and "- Topic" channels, `feat.` credits, and "Remastered 2011".
 - **Ambient look.** The album art is blurred and slowly drifts, and the text takes a tint from the artwork's colours. A clock appears when nothing is playing.
 - **Styles you can pick.** Four lyrics styles (Cinematic, Karaoke, Minimal, Party) and four backgrounds (Album art, Colour gradient, Plain dark, Art on the side), chosen separately in Settings or cycled with `S` and `G`.
+- **Sharp artwork.** Browsers only hand the OS a small thumbnail, so when the cover is small the app fetches the same song's cover in high resolution (up to 2000 px) from iTunes or Deezer. It only swaps when the title and artist match, and it can be turned off.
 - **One copy at a time.** Starting the app again just brings up the copy that's already running.
 - **Multi-monitor.** Pick a display, or mirror the lyrics on every display.
 - **Auto-open and auto-close.** Opens when music starts and closes after music stops (both optional).
@@ -51,6 +52,7 @@ The app keeps running in the **system tray** (the `^` arrow next to the clock on
 | `H` | Hide or show the player bar |
 | `S` | Next lyrics style |
 | `G` | Next background style |
+| `,` | Open Settings (also the sliders button on the player bar) |
 
 ### What you'll see
 
@@ -63,10 +65,10 @@ The app keeps running in the **system tray** (the `^` arrow next to the clock on
 
 ### Settings
 
-Open them from the tray menu → **Settings…**
+Open them with the sliders button on the player bar, the `,` key, or the tray menu → **Settings…** (on Windows 11 the tray icon may be hidden under the `^` arrow next to the clock).
 
 - **Style:** lyrics style and background style, each picked from preview cards (see below)
-- **Look:** word size, background blur, lyrics offset, hide the player bar
+- **Look:** word size, background blur, lyrics offset, hide the player bar, high-resolution artwork
 - **Display:** which monitor to use, mirror on all displays
 - **Behaviour:** auto-open when music starts, auto-close after music stops, launch at login
 - **Lyrics:** clear the lyrics cache
@@ -254,13 +256,19 @@ src-tauri/
   src/media/                  Windows SMTC / macOS adapter
   src/lyrics/                 LRCLIB client, LRC parser, title/artist normalisation, cache
   src/artwork.rs              Artwork processing + palette
+  src/artwork_hd.rs           High-res cover lookup (iTunes, Deezer)
   src/power.rs                Keep the display awake
   src/settings.rs             Settings file (validated + clamped)
 ```
 
 ### Privacy
 
-The only network requests are to `lrclib.net`, sending the song title, artist, album and duration to look up lyrics. Nothing else leaves your computer. There's no analytics and no account.
+Halo Lyrics only makes these network requests:
+
+- **Lyrics:** `lrclib.net`, with the song title, artist, album and duration.
+- **High-resolution artwork** (on by default, can be turned off in Settings → Look): when the player only provides a small cover, `itunes.apple.com` and `api.deezer.com` are searched with the song title and artist, and the matching cover image is downloaded.
+
+Nothing else leaves your computer. There's no analytics and no account.
 
 ---
 

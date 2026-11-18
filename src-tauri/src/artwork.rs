@@ -1,4 +1,4 @@
-//! Artwork: decode, downscale to ≤1024 px, re-encode as a JPEG data URL and
+//! Artwork: decode, downscale to ≤2048 px, re-encode as a JPEG data URL and
 //! extract a 5-colour palette (median cut on a 64×64 thumbnail).
 
 use base64::Engine as _;
@@ -6,7 +6,10 @@ use image::{imageops::FilterType, DynamicImage, GenericImageView, ImageFormat};
 use serde::Serialize;
 use std::io::Cursor;
 
-pub const MAX_SIDE: u32 = 1024;
+/// Big enough to stay sharp as a full-screen background on a 1080p display
+/// (the background is scaled up a little for its slow drift).
+pub const MAX_SIDE: u32 = 2048;
+const JPEG_QUALITY: u8 = 90;
 
 #[derive(Serialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -14,6 +17,10 @@ pub struct Artwork {
     pub data_url: String,
     /// 5 hex colours, most vivid first.
     pub palette: Vec<String>,
+    /// Shorter side of the image as received, before any downscaling. Lets the
+    /// hub decide whether to look for a sharper cover.
+    #[serde(skip)]
+    pub source_side: u32,
 }
 
 pub fn process(bytes: &[u8]) -> Option<Artwork> {
@@ -23,22 +30,40 @@ pub fn process(bytes: &[u8]) -> Option<Artwork> {
     if w == 0 || h == 0 {
         return None;
     }
-    let img = if w.max(h) > MAX_SIDE { img.resize(MAX_SIDE, MAX_SIDE, FilterType::Triangle) } else { img };
+    let source_side = w.min(h);
+    // Lanczos keeps fine detail when shrinking large covers.
+    let img = if w.max(h) > MAX_SIDE {
+        img.resize(MAX_SIDE, MAX_SIDE, FilterType::Lanczos3)
+    } else {
+        img
+    };
     let rgb = DynamicImage::ImageRgb8(img.to_rgb8());
 
     let mut jpeg = Vec::new();
     {
-        let mut enc = image::codecs::jpeg::JpegEncoder::new_with_quality(Cursor::new(&mut jpeg), 88);
+        let mut enc = image::codecs::jpeg::JpegEncoder::new_with_quality(
+            Cursor::new(&mut jpeg),
+            JPEG_QUALITY,
+        );
         if enc.encode_image(&rgb).is_err() {
             // Fall back to PNG if JPEG fails for some reason.
             jpeg.clear();
-            rgb.write_to(&mut Cursor::new(&mut jpeg), ImageFormat::Png).ok()?;
+            rgb.write_to(&mut Cursor::new(&mut jpeg), ImageFormat::Png)
+                .ok()?;
             let b64 = base64::engine::general_purpose::STANDARD.encode(&jpeg);
-            return Some(Artwork { data_url: format!("data:image/png;base64,{b64}"), palette: palette(&rgb) });
+            return Some(Artwork {
+                data_url: format!("data:image/png;base64,{b64}"),
+                palette: palette(&rgb),
+                source_side,
+            });
         }
     }
     let b64 = base64::engine::general_purpose::STANDARD.encode(&jpeg);
-    Some(Artwork { data_url: format!("data:image/jpeg;base64,{b64}"), palette: palette(&rgb) })
+    Some(Artwork {
+        data_url: format!("data:image/jpeg;base64,{b64}"),
+        palette: palette(&rgb),
+        source_side,
+    })
 }
 
 /// Video thumbnails (YouTube in a browser) often arrive as 16:9 with black bars
@@ -178,7 +203,11 @@ fn hex(c: [u8; 3]) -> String {
 pub fn chroma(c: [u8; 3]) -> f64 {
     let lin = |v: u8| {
         let v = v as f64 / 255.0;
-        if v <= 0.04045 { v / 12.92 } else { ((v + 0.055) / 1.055).powf(2.4) }
+        if v <= 0.04045 {
+            v / 12.92
+        } else {
+            ((v + 0.055) / 1.055).powf(2.4)
+        }
     };
     let (r, g, b) = (lin(c[0]), lin(c[1]), lin(c[2]));
     let l = (0.412_221_470_8 * r + 0.536_332_536_3 * g + 0.051_445_992_9 * b).cbrt();
@@ -197,7 +226,11 @@ mod tests {
     fn two_tone() -> DynamicImage {
         let mut img = RgbImage::new(200, 200);
         for (x, _y, p) in img.enumerate_pixels_mut() {
-            *p = if x < 140 { Rgb([40, 40, 40]) } else { Rgb([220, 30, 60]) };
+            *p = if x < 140 {
+                Rgb([40, 40, 40])
+            } else {
+                Rgb([220, 30, 60])
+            };
         }
         DynamicImage::ImageRgb8(img)
     }
@@ -213,25 +246,34 @@ mod tests {
 
     #[test]
     fn process_downscales_and_encodes() {
-        let mut img = RgbImage::new(2000, 1500);
+        let mut img = RgbImage::new(4000, 3000);
         for (x, y, p) in img.enumerate_pixels_mut() {
             *p = Rgb([(x % 256) as u8, (y % 256) as u8, 128]);
         }
         let mut png = Vec::new();
-        DynamicImage::ImageRgb8(img).write_to(&mut Cursor::new(&mut png), ImageFormat::Png).unwrap();
+        DynamicImage::ImageRgb8(img)
+            .write_to(&mut Cursor::new(&mut png), ImageFormat::Png)
+            .unwrap();
         let art = process(&png).unwrap();
         assert!(art.data_url.starts_with("data:image/jpeg;base64,"));
         let b64 = &art.data_url["data:image/jpeg;base64,".len()..];
-        let bytes = base64::engine::general_purpose::STANDARD.decode(b64).unwrap();
+        let bytes = base64::engine::general_purpose::STANDARD
+            .decode(b64)
+            .unwrap();
         let decoded = image::load_from_memory(&bytes).unwrap();
-        assert_eq!(decoded.dimensions(), (1024, 768));
+        assert_eq!(decoded.dimensions(), (2048, 1536));
+        assert_eq!(art.source_side, 3000);
     }
 
     #[test]
     fn crops_letterbox_bars() {
         let mut img = RgbImage::new(320, 180);
         for (x, _y, p) in img.enumerate_pixels_mut() {
-            *p = if (70..250).contains(&x) { Rgb([200, 120, 40]) } else { Rgb([0, 0, 0]) };
+            *p = if (70..250).contains(&x) {
+                Rgb([200, 120, 40])
+            } else {
+                Rgb([0, 0, 0])
+            };
         }
         let cropped = crop_letterbox(DynamicImage::ImageRgb8(img));
         let (w, h) = cropped.dimensions();

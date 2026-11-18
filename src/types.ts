@@ -46,6 +46,7 @@ export type Settings = {
   hidePlayerBar: boolean;
   lyricsStyle: LyricsStyle;
   backgroundStyle: BackgroundStyle;
+  hdArtwork: boolean;
 };
 
 // Keep in step with LYRICS_STYLES / BACKGROUND_STYLES in src-tauri/src/settings.rs.

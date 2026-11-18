@@ -65,8 +65,12 @@ body {
 .bg {
   position: absolute;
   inset: 0;
+  /* Own stacking context, so .bg-dim's z-index stays inside the background
+     instead of covering (and swallowing clicks for) the player bar. */
+  z-index: 0;
   overflow: hidden;
   background: var(--base);
+  pointer-events: none;
 }
 .bg-layer {
   position: absolute;
@@ -692,6 +696,7 @@ body {
   transform: translateY(-55%);
   border-radius: 24px;
   object-fit: cover;
+  pointer-events: none;
   box-shadow:
     0 30px 80px rgba(0, 0, 0, 0.55),
     0 8px 24px rgba(0, 0, 0, 0.35);

@@ -36,8 +36,12 @@ pub struct Line {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 #[serde(tag = "kind", rename_all = "lowercase")]
 pub enum Lyrics {
-    Synced { lines: Vec<Line> },
-    Plain { text: String },
+    Synced {
+        lines: Vec<Line>,
+    },
+    Plain {
+        text: String,
+    },
     Instrumental,
     #[serde(rename = "none")]
     NotFound,
@@ -80,7 +84,16 @@ pub struct LyricsService {
 impl LyricsService {
     pub fn new(cache_dir: PathBuf, override_dir: Option<PathBuf>) -> Self {
         let _ = std::fs::create_dir_all(&cache_dir);
-        Self { client: lrclib::client(), cache_dir, override_dir }
+        Self {
+            client: lrclib::client(),
+            cache_dir,
+            override_dir,
+        }
+    }
+
+    /// Shared HTTP client (also used for the high-res artwork lookup).
+    pub fn client(&self) -> &reqwest::Client {
+        &self.client
     }
 
     pub fn override_dir(&self) -> Option<&Path> {
@@ -98,13 +111,16 @@ impl LyricsService {
         match self.fetch(t).await {
             Ok((raw, lyrics)) => {
                 let miss = raw.is_none();
-                self.write_cache(&t.track_key, CacheEntry {
-                    version: CACHE_VERSION,
-                    fetched_at: now_ms(),
-                    miss,
-                    raw,
-                    lyrics: lyrics.clone(),
-                });
+                self.write_cache(
+                    &t.track_key,
+                    CacheEntry {
+                        version: CACHE_VERSION,
+                        fetched_at: now_ms(),
+                        miss,
+                        raw,
+                        lyrics: lyrics.clone(),
+                    },
+                );
                 lyrics
             }
             Err(e) => {
@@ -115,7 +131,10 @@ impl LyricsService {
         }
     }
 
-    async fn fetch(&self, t: &TrackInfo) -> Result<(Option<lrclib::Record>, Lyrics), lrclib::FetchError> {
+    async fn fetch(
+        &self,
+        t: &TrackInfo,
+    ) -> Result<(Option<lrclib::Record>, Lyrics), lrclib::FetchError> {
         for (title, artist) in query_variants(t) {
             let q = lrclib::Query {
                 title: &title,
@@ -138,7 +157,10 @@ impl LyricsService {
     }
 
     fn cache_path(&self, track_key: &str) -> PathBuf {
-        let safe: String = track_key.chars().filter(|c| c.is_ascii_alphanumeric()).collect();
+        let safe: String = track_key
+            .chars()
+            .filter(|c| c.is_ascii_alphanumeric())
+            .collect();
         self.cache_dir.join(format!("{safe}.json"))
     }
 
@@ -179,7 +201,9 @@ impl LyricsService {
         if let Ok(rd) = std::fs::read_dir(&self.cache_dir) {
             for e in rd.flatten() {
                 let p = e.path();
-                if p.extension().is_some_and(|x| x == "json" || x == "tmp") && std::fs::remove_file(&p).is_ok() {
+                if p.extension().is_some_and(|x| x == "json" || x == "tmp")
+                    && std::fs::remove_file(&p).is_ok()
+                {
                     n += 1;
                 }
             }
@@ -190,7 +214,11 @@ impl LyricsService {
 
     pub fn cache_count(&self) -> usize {
         std::fs::read_dir(&self.cache_dir)
-            .map(|rd| rd.flatten().filter(|e| e.path().extension().is_some_and(|x| x == "json")).count())
+            .map(|rd| {
+                rd.flatten()
+                    .filter(|e| e.path().extension().is_some_and(|x| x == "json"))
+                    .count()
+            })
             .unwrap_or(0)
     }
 
@@ -203,16 +231,25 @@ impl LyricsService {
         let mut names = Vec::new();
         let pairs = [
             (t.artist.clone(), t.title.clone()),
-            (normalize::clean_artist(&t.artist), normalize::clean_title(&t.title)),
+            (
+                normalize::clean_artist(&t.artist),
+                normalize::clean_title(&t.title),
+            ),
         ];
         for (artist, title) in pairs {
             for repl in ["", "_"] {
-                names.push(format!("{} - {}.lrc", sanitize(&artist, repl), sanitize(&title, repl)));
+                names.push(format!(
+                    "{} - {}.lrc",
+                    sanitize(&artist, repl),
+                    sanitize(&title, repl)
+                ));
             }
         }
         for name in names {
             let path = dir.join(&name);
-            if std::fs::metadata(&path).map_or(true, |m| !m.is_file() || m.len() > MAX_OVERRIDE_BYTES) {
+            if std::fs::metadata(&path)
+                .map_or(true, |m| !m.is_file() || m.len() > MAX_OVERRIDE_BYTES)
+            {
                 continue;
             }
             if let Ok(text) = std::fs::read_to_string(&path) {
@@ -231,12 +268,19 @@ pub fn query_variants(t: &TrackInfo) -> Vec<(String, String)> {
     let artist = normalize::clean_artist(artist_raw);
     let mut out: Vec<(String, String)> = Vec::new();
     let mut push = |ti: String, ar: String| {
-        if !ti.is_empty() && !out.iter().any(|(a, b)| normalize::key(a) == normalize::key(&ti) && normalize::key(b) == normalize::key(&ar)) {
+        if !ti.is_empty()
+            && !out.iter().any(|(a, b)| {
+                normalize::key(a) == normalize::key(&ti) && normalize::key(b) == normalize::key(&ar)
+            })
+        {
             out.push((ti, ar));
         }
     };
     // Browser video titles: "Artist - Title (Official Video)".
-    if is_browser(&t.source_app) || t.artist.to_lowercase().ends_with("vevo") || t.artist.ends_with("- Topic") {
+    if is_browser(&t.source_app)
+        || t.artist.to_lowercase().ends_with("vevo")
+        || t.artist.ends_with("- Topic")
+    {
         if let Some((ti, ar)) = normalize::split_artist_title(&t.title, artist_raw) {
             push(normalize::clean_title(&ti), normalize::clean_artist(&ar));
         }
@@ -253,14 +297,20 @@ pub fn record_to_lyrics(rec: &lrclib::Record, duration_ms: u64) -> Lyrics {
     if rec.instrumental {
         return Lyrics::Instrumental;
     }
-    if let Some(synced) = rec.synced_lyrics.as_deref().filter(|s| !s.trim().is_empty()) {
+    if let Some(synced) = rec
+        .synced_lyrics
+        .as_deref()
+        .filter(|s| !s.trim().is_empty())
+    {
         let lines = lrc::parse(synced, Some(duration_ms).filter(|d| *d > 0));
         if lines.iter().any(|l| l.text != lrc::BREATHER) {
             return Lyrics::Synced { lines };
         }
     }
     if let Some(plain) = rec.plain_lyrics.as_deref().filter(|s| !s.trim().is_empty()) {
-        return Lyrics::Plain { text: plain.trim().to_string() };
+        return Lyrics::Plain {
+            text: plain.trim().to_string(),
+        };
     }
     Lyrics::NotFound
 }
@@ -277,7 +327,9 @@ pub fn text_to_lyrics(text: &str, duration_ms: u64) -> Lyrics {
     if plain.is_empty() {
         Lyrics::NotFound
     } else {
-        Lyrics::Plain { text: plain.to_string() }
+        Lyrics::Plain {
+            text: plain.to_string(),
+        }
     }
 }
 
@@ -326,7 +378,11 @@ mod tests {
 
     #[test]
     fn variants_for_youtube_video() {
-        let v = query_variants(&track("Some Band - Great Song (Official Video)", "SomeBandVEVO", "Chrome"));
+        let v = query_variants(&track(
+            "Some Band - Great Song (Official Video)",
+            "SomeBandVEVO",
+            "Chrome",
+        ));
         assert_eq!(v[0], ("Great Song".to_string(), "Some Band".to_string()));
     }
 
@@ -351,16 +407,30 @@ mod tests {
         let j = serde_json::to_value(Lyrics::Instrumental).unwrap();
         assert_eq!(j, serde_json::json!({"kind":"instrumental"}));
         let j = serde_json::to_value(Lyrics::Synced {
-            lines: vec![Line { start_ms: 1, end_ms: 2, text: "a".into(), words: None }],
+            lines: vec![Line {
+                start_ms: 1,
+                end_ms: 2,
+                text: "a".into(),
+                words: None,
+            }],
         })
         .unwrap();
-        assert_eq!(j, serde_json::json!({"kind":"synced","lines":[{"startMs":1,"endMs":2,"text":"a"}]}));
+        assert_eq!(
+            j,
+            serde_json::json!({"kind":"synced","lines":[{"startMs":1,"endMs":2,"text":"a"}]})
+        );
     }
 
     #[test]
     fn override_text() {
-        assert!(matches!(text_to_lyrics("[00:01.00]hi", 0), Lyrics::Synced { .. }));
-        assert!(matches!(text_to_lyrics("hi\nthere", 0), Lyrics::Plain { .. }));
+        assert!(matches!(
+            text_to_lyrics("[00:01.00]hi", 0),
+            Lyrics::Synced { .. }
+        ));
+        assert!(matches!(
+            text_to_lyrics("hi\nthere", 0),
+            Lyrics::Plain { .. }
+        ));
         assert!(matches!(text_to_lyrics("  ", 0), Lyrics::NotFound));
     }
 
@@ -374,12 +444,33 @@ mod tests {
     fn cache_roundtrip_and_miss_ttl() {
         let dir = std::env::temp_dir().join(format!("halo-cache-test-{}", std::process::id()));
         let svc = LyricsService::new(dir.clone(), None);
-        let t = TrackInfo { track_key: "abc123".into(), ..track("T", "A", "Spotify") };
+        let t = TrackInfo {
+            track_key: "abc123".into(),
+            ..track("T", "A", "Spotify")
+        };
         assert!(svc.from_cache(&t).is_none());
-        svc.write_cache("abc123", CacheEntry { version: CACHE_VERSION, fetched_at: now_ms(), miss: true, raw: None, lyrics: Lyrics::NotFound });
+        svc.write_cache(
+            "abc123",
+            CacheEntry {
+                version: CACHE_VERSION,
+                fetched_at: now_ms(),
+                miss: true,
+                raw: None,
+                lyrics: Lyrics::NotFound,
+            },
+        );
         assert_eq!(svc.from_cache(&t), Some(Lyrics::NotFound));
         // expired miss
-        svc.write_cache("abc123", CacheEntry { version: CACHE_VERSION, fetched_at: now_ms() - MISS_TTL_MS - 1, miss: true, raw: None, lyrics: Lyrics::NotFound });
+        svc.write_cache(
+            "abc123",
+            CacheEntry {
+                version: CACHE_VERSION,
+                fetched_at: now_ms() - MISS_TTL_MS - 1,
+                miss: true,
+                raw: None,
+                lyrics: Lyrics::NotFound,
+            },
+        );
         assert!(svc.from_cache(&t).is_none());
         assert_eq!(svc.cache_count(), 1);
         assert_eq!(svc.clear_cache(), 1);

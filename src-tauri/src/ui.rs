@@ -8,7 +8,10 @@ use crate::{safety, AppState};
 use serde::Serialize;
 use std::sync::{Mutex, MutexGuard};
 use tauri::window::Color;
-use tauri::{AppHandle, Manager, Monitor, PhysicalPosition, PhysicalSize, Position, Size, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
+use tauri::{
+    AppHandle, Manager, Monitor, PhysicalPosition, PhysicalSize, Position, Size, WebviewUrl,
+    WebviewWindow, WebviewWindowBuilder,
+};
 
 pub const MAIN: &str = "main";
 pub const SETTINGS: &str = "settings";
@@ -41,15 +44,21 @@ pub fn is_lyrics_window(label: &str) -> bool {
 }
 
 pub fn lyrics_visible(app: &AppHandle) -> bool {
-    app.get_webview_window(MAIN).and_then(|w| w.is_visible().ok()).unwrap_or(false)
+    app.get_webview_window(MAIN)
+        .and_then(|w| w.is_visible().ok())
+        .unwrap_or(false)
 }
 
 fn monitor_id(m: &Monitor, index: usize) -> String {
-    m.name().cloned().unwrap_or_else(|| format!("monitor-{index}"))
+    m.name()
+        .cloned()
+        .unwrap_or_else(|| format!("monitor-{index}"))
 }
 
 pub fn list_monitors(app: &AppHandle) -> Vec<MonitorInfo> {
-    let Some(w) = app.get_webview_window(MAIN) else { return Vec::new() };
+    let Some(w) = app.get_webview_window(MAIN) else {
+        return Vec::new();
+    };
     let monitors = w.available_monitors().unwrap_or_default();
     let primary = w.primary_monitor().ok().flatten();
     monitors
@@ -60,7 +69,9 @@ pub fn list_monitors(app: &AppHandle) -> Vec<MonitorInfo> {
             MonitorInfo {
                 id: monitor_id(m, i),
                 label: format!("Display {} — {} × {}", i + 1, size.width, size.height),
-                primary: primary.as_ref().is_some_and(|p| p.name() == m.name() && p.position() == m.position()),
+                primary: primary
+                    .as_ref()
+                    .is_some_and(|p| p.name() == m.name() && p.position() == m.position()),
             }
         })
         .collect()
@@ -86,23 +97,36 @@ fn place(w: &WebviewWindow, m: &Monitor) {
 }
 
 pub fn show_lyrics(app: &AppHandle) {
-    let Some(main) = app.get_webview_window(MAIN) else { return };
+    let Some(main) = app.get_webview_window(MAIN) else {
+        return;
+    };
     let _guard = ui_lock();
     // Arm the Esc kill switch before anything can cover the screen.
     safety::set_overlay_active(true);
     let state = app.state::<AppState>();
-    let settings = state.settings.lock().unwrap_or_else(|e| e.into_inner()).clone();
+    let settings = state
+        .settings
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .clone();
     let monitors = main.available_monitors().unwrap_or_default();
     let primary = main.primary_monitor().ok().flatten();
 
     let target_idx = settings
         .monitor
         .as_ref()
-        .and_then(|id| monitors.iter().enumerate().position(|(i, m)| &monitor_id(m, i) == id))
+        .and_then(|id| {
+            monitors
+                .iter()
+                .enumerate()
+                .position(|(i, m)| &monitor_id(m, i) == id)
+        })
         .or_else(|| {
-            primary
-                .as_ref()
-                .and_then(|p| monitors.iter().position(|m| m.name() == p.name() && m.position() == p.position()))
+            primary.as_ref().and_then(|p| {
+                monitors
+                    .iter()
+                    .position(|m| m.name() == p.name() && m.position() == p.position())
+            })
         })
         .or(if monitors.is_empty() { None } else { Some(0) });
 
@@ -128,15 +152,19 @@ pub fn show_lyrics(app: &AppHandle) {
             used += 1;
             let w = match app.get_webview_window(&label) {
                 Some(w) => w,
-                None => match WebviewWindowBuilder::new(app, &label, WebviewUrl::App("index.html".into()))
-                    .title("Halo Lyrics")
-                    .decorations(false)
-                    .always_on_top(true)
-                    .skip_taskbar(true)
-                    .visible(false)
-                    .focused(false)
-                    .background_color(BG)
-                    .build()
+                None => match WebviewWindowBuilder::new(
+                    app,
+                    &label,
+                    WebviewUrl::App("index.html".into()),
+                )
+                .title("Halo Lyrics")
+                .decorations(false)
+                .always_on_top(true)
+                .skip_taskbar(true)
+                .visible(false)
+                .focused(false)
+                .background_color(BG)
+                .build()
                 {
                     Ok(w) => w,
                     Err(e) => {
@@ -150,7 +178,10 @@ pub fn show_lyrics(app: &AppHandle) {
         }
     }
     for (label, w) in app.webview_windows() {
-        if let Some(n) = label.strip_prefix(MIRROR_PREFIX).and_then(|n| n.parse::<usize>().ok()) {
+        if let Some(n) = label
+            .strip_prefix(MIRROR_PREFIX)
+            .and_then(|n| n.parse::<usize>().ok())
+        {
             if n >= used {
                 let _ = w.destroy();
             }
@@ -185,11 +216,13 @@ pub fn toggle_lyrics(app: &AppHandle) {
 
 pub fn open_settings(app: &AppHandle) {
     if let Some(w) = app.get_webview_window(SETTINGS) {
+        log::info!("settings: focusing the existing window");
         let _ = w.unminimize();
         let _ = w.show();
         let _ = w.set_focus();
         return;
     }
+    log::info!("settings: creating the window");
     let built = WebviewWindowBuilder::new(app, SETTINGS, WebviewUrl::App("settings.html".into()))
         .title("Halo Lyrics Settings")
         .inner_size(560.0, 780.0)
@@ -203,6 +236,7 @@ pub fn open_settings(app: &AppHandle) {
         .build();
     match built {
         Ok(w) => {
+            log::info!("settings: window created");
             let _ = w.set_focus();
         }
         Err(e) => log::warn!("opening settings failed: {e}"),
