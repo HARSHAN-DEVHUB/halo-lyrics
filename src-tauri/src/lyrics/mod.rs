@@ -11,7 +11,9 @@ use crate::media::{is_browser, now_ms};
 
 /// Cached misses expire after this long; hits are kept until the cache is cleared.
 const MISS_TTL_MS: u64 = 24 * 60 * 60 * 1000;
-const CACHE_VERSION: u32 = 1;
+/// Bump when the lookup gets better, so earlier misses are tried again.
+/// 2: music-video titles with "| credits" and label channels.
+const CACHE_VERSION: u32 = 2;
 /// A real .lrc is a few KB; don't load something huge by mistake.
 const MAX_OVERRIDE_BYTES: u64 = 1024 * 1024;
 
@@ -276,11 +278,11 @@ pub fn query_variants(t: &TrackInfo) -> Vec<(String, String)> {
             out.push((ti, ar));
         }
     };
-    // Browser video titles: "Artist - Title (Official Video)".
-    if is_browser(&t.source_app)
+    let video = is_browser(&t.source_app)
         || t.artist.to_lowercase().ends_with("vevo")
-        || t.artist.ends_with("- Topic")
-    {
+        || t.artist.ends_with("- Topic");
+    // Browser video titles: "Artist - Title (Official Video)".
+    if video {
         if let Some((ti, ar)) = normalize::split_artist_title(&t.title, artist_raw) {
             push(normalize::clean_title(&ti), normalize::clean_artist(&ar));
         }
@@ -290,8 +292,27 @@ pub fn query_variants(t: &TrackInfo) -> Vec<(String, String)> {
     if primary != artist {
         push(title.clone(), primary);
     }
+    if video {
+        // The channel is often a record label ("Sony Music South"), not the
+        // singer. Other guesses, most likely first:
+        // 1. "Artist - Song" even when the left side doesn't look like the channel.
+        if let Some((left, right)) = title.split_once(" - ") {
+            push(normalize::clean_title(right), normalize::clean_artist(left));
+        }
+        // 2. The first credit after the pipes ("Song | Singer | Composer").
+        if let Some(first) = normalize::pipe_credits(&t.title).into_iter().next() {
+            push(title.clone(), first);
+        }
+        // 3. The title alone; the duration check in the search keeps this from
+        //    picking a different song with the same name.
+        push(title.clone(), String::new());
+    }
+    // Each guess costs up to three requests to LRCLIB: keep it polite.
+    out.truncate(MAX_QUERY_VARIANTS);
     out
 }
+
+const MAX_QUERY_VARIANTS: usize = 5;
 
 pub fn record_to_lyrics(rec: &lrclib::Record, duration_ms: u64) -> Lyrics {
     if rec.instrumental {
@@ -392,6 +413,26 @@ mod tests {
         assert_eq!(v[0], ("Song".to_string(), "A & B".to_string()));
         assert_eq!(v[1], ("Song".to_string(), "A".to_string()));
         assert_eq!(v.len(), 2);
+    }
+
+    #[test]
+    fn variants_for_label_channel_videos() {
+        let v = query_variants(&track(
+            "Annakiliye - Music Video | Smith Asher | Viky Pup | Dheekshitha | Albuquerque Records | Anirudh",
+            "Anirudh Ravichander",
+            "Chrome",
+        ));
+        assert_eq!(v[0], ("Annakiliye".to_string(), "Anirudh Ravichander".to_string()));
+        assert!(v.contains(&("Annakiliye".to_string(), "Smith Asher".to_string())));
+        assert!(v.contains(&("Annakiliye".to_string(), String::new())));
+
+        let v = query_variants(&track(
+            "Paal Dabba - Aeroplane (Music Video) | Ananya | Rahul Ashok Kumar | Think Indie",
+            "Think Music India",
+            "Chrome",
+        ));
+        assert!(v.contains(&("Aeroplane".to_string(), "Paal Dabba".to_string())), "{v:?}");
+        assert!(v.len() <= MAX_QUERY_VARIANTS);
     }
 
     #[test]

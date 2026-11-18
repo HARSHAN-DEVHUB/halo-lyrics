@@ -10,6 +10,7 @@ use std::sync::mpsc::{channel, RecvTimeoutError, Sender};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
+use windows::core::{IUnknown, Interface};
 use windows::Foundation::TypedEventHandler;
 use windows::Media::Control::{
     GlobalSystemMediaTransportControlsSession as Session,
@@ -177,13 +178,28 @@ fn run(tx: &Sender<Msg>, rx: &std::sync::mpsc::Receiver<Msg>, out: &SnapshotSend
     }
 }
 
+/// Key for one media session. Every tab of a browser reports the same app id
+/// ("Chrome"), so the app id alone would merge two YouTube tabs into one and
+/// make us flip between them; the COM identity of the session object (stable
+/// for its lifetime) tells them apart.
+fn session_key(session: &Session) -> windows::core::Result<String> {
+    let app = session.SourceAppUserModelId()?.to_string();
+    let identity = session.cast::<IUnknown>()?.as_raw() as usize;
+    Ok(format!("{app}#{identity:x}"))
+}
+
+/// The app id part of a [`session_key`].
+fn app_id(key: &str) -> &str {
+    key.rsplit_once('#').map_or(key, |(app, _)| app)
+}
+
 /// Keeps `tracked` in step with the OS session list and subscribes to new sessions.
 fn sync_sessions(manager: &Manager, tracked: &mut HashMap<String, Tracked>, tx: &Sender<Msg>) -> windows::core::Result<()> {
     let sessions = manager.GetSessions()?;
     let mut seen = HashSet::new();
     for i in 0..sessions.Size()? {
         let session = sessions.GetAt(i)?;
-        let id = session.SourceAppUserModelId()?.to_string();
+        let id = session_key(&session)?;
         let playing = session
             .GetPlaybackInfo()
             .and_then(|p| p.PlaybackStatus())
@@ -199,12 +215,19 @@ fn sync_sessions(manager: &Manager, tracked: &mut HashMap<String, Tracked>, tx: 
                 t.session = session;
             }
             None => {
+                log::info!("media session added: {} ({} now)", app_id(&id), tracked.len() + 1);
                 subscribe(&session, &id, tx);
                 tracked.insert(id, Tracked { session, playing, changed_at: Instant::now() });
             }
         }
     }
-    tracked.retain(|id, _| seen.contains(id));
+    tracked.retain(|id, _| {
+        let keep = seen.contains(id);
+        if !keep {
+            log::info!("media session removed: {}", app_id(id));
+        }
+        keep
+    });
     Ok(())
 }
 
@@ -237,8 +260,7 @@ fn choose(manager: &Manager, tracked: &HashMap<String, Tracked>) -> Option<Strin
         return Some(id.clone());
     }
     if let Ok(current) = manager.GetCurrentSession() {
-        if let Ok(id) = current.SourceAppUserModelId() {
-            let id = id.to_string();
+        if let Ok(id) = session_key(&current) {
             if tracked.contains_key(&id) {
                 return Some(id);
             }
@@ -313,8 +335,8 @@ fn read_session(id: &str, session: &Session, art: &mut ArtState, force_art: bool
     }
 
     Ok(Some(RawNowPlaying {
-        source_app: friendly_app_name(id),
-        source_id: id.to_string(),
+        source_app: friendly_app_name(app_id(id)),
+        source_id: app_id(id).to_string(),
         title,
         artist,
         album: if album.trim().is_empty() { None } else { Some(album) },

@@ -8,20 +8,23 @@ const JUNK_GROUP_PREFIXES: &[&str] = &[
     "feat", "ft.", "ft ", "featuring", "with ", "prod", "official", "lyric", "lyrics", "audio", "video",
     "visualizer", "visualiser", "live", "remaster", "radio edit", "explicit", "clean", "hd", "hq", "4k",
     "mv", "m/v", "music video", "color coded", "colour coded", "mono", "stereo", "single version",
-    "album version", "bonus track", "sped up", "slowed", "from ", "taken from",
+    "album version", "bonus track", "sped up", "slowed", "from ", "taken from", "full video", "full song",
+    "video song", "full audio",
 ];
 
 /// ` - suffix` junk: removed when the part after " - " starts with / contains these.
 const JUNK_DASH_PREFIXES: &[&str] = &[
     "remaster", "radio edit", "live", "youtube music", "youtube", "single version", "album version",
     "mono", "stereo", "edit", "bonus track", "explicit", "clean", "official", "lyric", "audio", "video",
+    "music video", "full video", "full song", "full audio", "video song", "4k", "hd",
 ];
 
-/// Cleans a track title for lookup: drops "(feat. …)", "(Official Video)",
-/// " - Remastered 2011", "(Live)", " - Radio Edit", " - YouTube Music" and
-/// leading/trailing punctuation.
+/// Cleans a track title for lookup: drops "| credits | label" tails,
+/// "(feat. …)", "(Official Video)", " - Music Video", " - Remastered 2011",
+/// "(Live)", " - Radio Edit", " - YouTube Music" and leading/trailing punctuation.
 pub fn clean_title(title: &str) -> String {
-    let mut s = strip_groups(title, JUNK_GROUP_PREFIXES);
+    let mut s = strip_pipe_credits(title);
+    s = strip_groups(&s, JUNK_GROUP_PREFIXES);
     s = strip_dash_suffixes(&s);
     s = strip_inline_feat(&s);
     trim_punct(&s)
@@ -144,6 +147,28 @@ fn levenshtein(a: &str, b: &str) -> usize {
     prev[b.len()]
 }
 
+/// Music-video titles (common on Indian label channels) list credits after
+/// pipes: "Song - Music Video | Singer | Composer | Label". Keep the part
+/// before the first pipe, unless that would leave nothing.
+fn strip_pipe_credits(s: &str) -> String {
+    match s.find(['|', '｜']) {
+        Some(i) if !trim_punct(&s[..i]).is_empty() => s[..i].trim_end().to_string(),
+        _ => s.to_string(),
+    }
+}
+
+/// The credits after the first pipe of a video title ("Singer", "Composer", …),
+/// which often name the real artist when the channel is a record label.
+pub fn pipe_credits(title: &str) -> Vec<String> {
+    title
+        .split(['|', '｜'])
+        .skip(1)
+        .flat_map(|part| part.split(','))
+        .map(trim_punct)
+        .filter(|p| !p.is_empty() && p.chars().count() <= 40)
+        .collect()
+}
+
 fn strip_groups(s: &str, prefixes: &[&str]) -> String {
     let mut out = String::with_capacity(s.len());
     let chars: Vec<char> = s.chars().collect();
@@ -256,6 +281,31 @@ mod tests {
         assert_eq!(clean_title("Don't Stop Me Now"), "Don't Stop Me Now");
         assert_eq!(clean_title("Part 1 - The Beginning"), "Part 1 - The Beginning");
         assert_eq!(clean_title("Liveforever"), "Liveforever");
+    }
+
+    #[test]
+    fn music_video_titles_with_credits() {
+        assert_eq!(
+            clean_title("Annakiliye - Music Video | Smith Asher | Viky Pup | Dheekshitha | Albuquerque Records | Anirudh"),
+            "Annakiliye"
+        );
+        assert_eq!(
+            clean_title("Rathinamo - Official Music Video | Saurav Srisan | Tanisha Gnanavel | Vidhu, Yogalakshmi |TamilIndie"),
+            "Rathinamo"
+        );
+        assert_eq!(
+            clean_title("Paal Dabba - Aeroplane (Music Video) | Ananya | Rahul Ashok Kumar | Think Indie"),
+            "Paal Dabba - Aeroplane"
+        );
+        assert_eq!(clean_title("Song - Video Song"), "Song");
+        assert_eq!(clean_title("Song (Full Video Song)"), "Song");
+        // A pipe at the very start is not a credits list.
+        assert_eq!(clean_title("| Song"), "Song");
+        assert_eq!(
+            pipe_credits("Rathinamo - Official Music Video | Saurav Srisan | Vidhu, Yogalakshmi |TamilIndie"),
+            vec!["Saurav Srisan", "Vidhu", "Yogalakshmi", "TamilIndie"]
+        );
+        assert!(pipe_credits("No credits here").is_empty());
     }
 
     #[test]
