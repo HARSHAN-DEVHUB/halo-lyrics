@@ -1,0 +1,628 @@
+@import "./fonts.css";
+
+:root {
+  --base: #09090c;
+  --text: #f4f1ec;
+  --tint: #f4f1ec;
+  --tint-glow: rgba(244, 241, 236, 0.4);
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  /* Sizes are set from settings in main.ts */
+  --active: 136px;
+  --sung: 46px;
+  --blur: 14px;
+
+  /* Secondary-text alphas. The spec asked for .45 / .40 / .38, but those land at
+     ~4.1:1 on the base colour; .50 / .48 / .48 are the lowest values that clear
+     the 4.5:1 contrast requirement against #09090C. */
+  --a-prev: 0.5;
+  --a-next: 0.48;
+  --a-upcoming: 0.48;
+  --a-sung: 0.92;
+
+  --font-serif: "Instrument Serif", "Iowan Old Style", Georgia, serif;
+  --font-sans: "Geist", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--base);
+  color: var(--text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.mono {
+  font-family: var(--font-mono);
+}
+
+.app {
+  position: fixed;
+  inset: 0;
+}
+
+/* ---------------------------------------------------------------- 1. artwork */
+.bg {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: var(--base);
+}
+.bg-layer {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 1.2s ease;
+}
+.bg-layer.on {
+  opacity: 1;
+}
+.bg-drift {
+  position: absolute;
+  inset: -4%;
+  transform: scale(1.18);
+  animation: drift 28s ease-in-out infinite alternate;
+  will-change: transform;
+}
+.bg-drift img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: blur(var(--blur)) saturate(1.15) brightness(0.8);
+}
+@keyframes drift {
+  from {
+    transform: scale(1.18);
+  }
+  to {
+    transform: scale(1.28) translate(-2%, 1.5%);
+  }
+}
+/* Idle screen dims the artwork from 80% to 40% brightness. */
+.bg-dim {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: rgba(9, 9, 12, 0.5);
+  opacity: 0;
+  transition: opacity 1.2s ease;
+}
+.app[data-mode="idle"] .bg-dim {
+  opacity: 1;
+}
+
+/* ---------------------------------------------------------------- 2. vignette */
+.vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse at 50% 50%, rgba(9, 9, 12, 0.15) 0%, rgba(9, 9, 12, 0.7) 85%);
+}
+
+/* ---------------------------------------------------------------- 3. bottom shade */
+.shade {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 260px;
+  pointer-events: none;
+  background: linear-gradient(to bottom, rgba(9, 9, 12, 0) 0%, rgba(9, 9, 12, 0.75) 100%);
+  transition: opacity 250ms ease;
+}
+.app.chrome-off .shade,
+.app.no-bar .shade,
+.app[data-mode="idle"] .shade {
+  opacity: 0;
+}
+
+/* ---------------------------------------------------------------- mode switching */
+.stage,
+.plain,
+.card,
+.idle,
+.unsynced {
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 600ms ease, visibility 0s linear 600ms;
+}
+.app[data-mode="synced"] .stage,
+.app[data-mode="plain"] .plain,
+.app[data-mode="plain"] .unsynced,
+.app[data-mode="card"] .card,
+.app[data-mode="idle"] .idle {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 600ms ease, visibility 0s;
+}
+
+/* ---------------------------------------------------------------- 4. lyrics stage */
+.stage {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 28px;
+  padding: 96px 6vw 140px;
+  text-align: center;
+}
+.app.no-bar .stage,
+.app.chrome-off .stage {
+  padding-bottom: 96px;
+}
+.line {
+  position: relative;
+  max-width: 1200px;
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: baseline;
+  transition:
+    transform 500ms var(--ease),
+    opacity 500ms var(--ease),
+    color 380ms var(--ease);
+}
+.line .w {
+  display: inline-block;
+  white-space: pre;
+  transition:
+    font-size 380ms var(--ease),
+    opacity 380ms var(--ease),
+    color 380ms var(--ease),
+    text-shadow 380ms var(--ease);
+}
+
+/* previous line */
+.line.prev {
+  font: 600 24px/1.25 var(--font-sans);
+  column-gap: 0.26em;
+  color: rgba(244, 241, 236, var(--a-prev));
+}
+.line.prev .w {
+  font-size: 24px;
+}
+
+/* next line */
+.line.next {
+  font: 600 28px/1.25 var(--font-sans);
+  column-gap: 0.26em;
+  color: rgba(244, 241, 236, var(--a-next));
+}
+.line.next .w {
+  font-size: 28px;
+}
+
+/* current line */
+.line.current {
+  font: 700 var(--sung) / 1.05 var(--font-sans);
+  column-gap: 0.32em;
+  color: var(--text);
+}
+.line.current .w {
+  font-size: var(--sung);
+  opacity: var(--a-upcoming);
+}
+.line.current .w.sung {
+  opacity: var(--a-sung);
+}
+.line.current .w.active {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-weight: 400;
+  font-size: var(--active);
+  letter-spacing: -0.02em;
+  color: var(--tint);
+  text-shadow: 0 0 60px var(--tint-glow);
+  opacity: 1;
+}
+
+/* just-left-active word: keep the serif while it shrinks (see holdSerif) */
+.line .w.was {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+}
+
+/* enter / leave (keyed list in render/lyrics.ts) */
+.line.enter {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: none;
+}
+.line.leaving {
+  position: absolute;
+  margin: 0;
+  pointer-events: none;
+}
+.line.leave-up {
+  opacity: 0;
+  transform: translateY(-24px);
+}
+.line.leave-down {
+  opacity: 0;
+  transform: translateY(24px);
+}
+
+/* gap / breather items */
+.line.gap {
+  min-height: 0;
+}
+.line.gap.prev,
+.line.gap.next {
+  opacity: 0;
+  height: 0;
+}
+.dots {
+  display: flex;
+  gap: 18px;
+  justify-content: center;
+  align-items: center;
+  height: calc(var(--active) * 0.6);
+}
+.dots i {
+  display: block;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--tint);
+  box-shadow: 0 0 24px var(--tint-glow);
+  opacity: 0.25;
+  will-change: transform, opacity;
+}
+
+/* ---------------------------------------------------------------- plain lyrics */
+.plain {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 22%, #000 78%, transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0%, #000 22%, #000 78%, transparent 100%);
+}
+.plain-inner {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: min(1200px, 88vw);
+  transform: translate(-50%, 0);
+  will-change: transform;
+  text-align: center;
+  font: 700 var(--sung) / 1.3 var(--font-sans);
+  color: rgba(244, 241, 236, var(--a-sung));
+  padding: 50vh 0;
+}
+.plain-inner p {
+  margin: 0 0 0.55em;
+}
+.plain-inner p.blank {
+  height: 0.6em;
+}
+.unsynced {
+  position: absolute;
+  top: 34px;
+  right: 40px;
+  font-size: 12px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(244, 241, 236, 0.62);
+}
+
+/* ---------------------------------------------------------------- no-lyrics card */
+.card {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 0 6vw 60px;
+}
+.card-art {
+  width: 360px;
+  height: 360px;
+  max-width: 42vh;
+  max-height: 42vh;
+  border-radius: 28px;
+  object-fit: cover;
+  box-shadow:
+    0 30px 80px rgba(0, 0, 0, 0.55),
+    0 8px 24px rgba(0, 0, 0, 0.35);
+  background: rgba(255, 255, 255, 0.06);
+}
+.card-art.empty {
+  visibility: hidden;
+}
+.card-title {
+  margin: 40px 0 0;
+  font: italic 400 64px/1.05 var(--font-serif);
+  letter-spacing: -0.01em;
+  max-width: 1100px;
+}
+.card-artist {
+  margin: 14px 0 0;
+  font: 400 20px/1.3 var(--font-sans);
+  color: rgba(244, 241, 236, 0.78);
+}
+.card-note {
+  margin: 26px 0 0;
+  min-height: 1em;
+  font-size: 12px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(244, 241, 236, 0.62);
+}
+.card-dots {
+  margin-top: 18px;
+  height: 30px;
+  display: none;
+}
+.card.instrumental .card-dots {
+  display: flex;
+}
+
+/* ---------------------------------------------------------------- idle */
+.idle {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.idle-clock {
+  font: 400 160px/1 var(--font-serif);
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.idle-date {
+  margin-top: 18px;
+  font-size: 14px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(244, 241, 236, 0.7);
+}
+
+/* ---------------------------------------------------------------- 5. player bar */
+.chrome {
+  transition: opacity 250ms ease;
+}
+.app.chrome-off .chrome {
+  opacity: 0;
+  pointer-events: none;
+}
+.app.chrome-off {
+  cursor: none;
+}
+.app.no-bar .bar,
+.app[data-mode="idle"] .bar {
+  display: none;
+}
+.bar {
+  position: absolute;
+  left: 50%;
+  bottom: 32px;
+  transform: translateX(-50%);
+  width: calc(100% - 64px);
+  max-width: 980px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 22px 10px 10px;
+  border-radius: 30px;
+  background: rgba(20, 18, 24, 0.45);
+  -webkit-backdrop-filter: blur(36px);
+  backdrop-filter: blur(36px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+.bar-thumb {
+  flex: none;
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  object-fit: cover;
+  background: rgba(255, 255, 255, 0.08);
+}
+.bar-thumb.empty {
+  visibility: hidden;
+}
+.bar-meta {
+  flex: 0 1 220px;
+  min-width: 0;
+}
+.bar-title {
+  font: 600 14px/1.3 var(--font-sans);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bar-artist {
+  font: 400 12px/1.3 var(--font-sans);
+  opacity: 0.78;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bar-controls {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.btn {
+  appearance: none;
+  border: 0;
+  margin: 0;
+  padding: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  transition: background 150ms ease;
+}
+.btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+.btn:focus-visible {
+  outline: 2px solid rgba(244, 241, 236, 0.6);
+  outline-offset: 2px;
+}
+.btn svg {
+  width: 20px;
+  height: 20px;
+  fill: currentColor;
+}
+.btn-play {
+  width: 42px;
+  height: 42px;
+  background: rgba(255, 255, 255, 0.1);
+}
+.btn-play svg {
+  width: 22px;
+  height: 22px;
+}
+.btn-play .i-pause,
+.app.playing .btn-play .i-play {
+  display: none;
+}
+.app.playing .btn-play .i-pause {
+  display: block;
+}
+.bar-progress {
+  flex: 1 1 auto;
+  min-width: 120px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.bar-time {
+  flex: none;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: rgba(244, 241, 236, 0.78);
+  min-width: 3.2em;
+}
+.bar-time:last-child {
+  text-align: right;
+}
+.bar-track {
+  position: relative;
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.16);
+  overflow: hidden;
+}
+.bar-fill {
+  position: absolute;
+  inset: 0;
+  transform-origin: 0 50%;
+  transform: scaleX(0);
+  background: var(--text);
+  border-radius: 2px;
+}
+
+/* ---------------------------------------------------------------- 6. top-left label */
+.label {
+  position: absolute;
+  top: 28px;
+  left: 32px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: calc(100vw - 200px);
+  font-size: 12px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(244, 241, 236, 0.78);
+}
+.label span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ring {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  color: var(--tint);
+}
+
+/* ---------------------------------------------------------------- toast */
+.toast {
+  position: absolute;
+  top: 28px;
+  left: 50%;
+  transform: translate(-50%, -8px);
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  background: rgba(20, 18, 24, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: blur(24px);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 250ms ease,
+    transform 250ms ease;
+}
+.toast.show {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+/* ---------------------------------------------------------------- small screens */
+@media (max-width: 900px) {
+  .bar-meta {
+    display: none;
+  }
+  .card-title {
+    font-size: 44px;
+  }
+  .idle-clock {
+    font-size: 110px;
+  }
+}
+
+/* ---------------------------------------------------------------- reduced motion */
+/* No drift, no size transitions, no slides: only opacity crossfades. */
+@media (prefers-reduced-motion: reduce) {
+  .bg-drift {
+    animation: none;
+  }
+  .line,
+  .line .w {
+    transition: opacity 380ms ease;
+  }
+  .line.enter,
+  .line.leave-up,
+  .line.leave-down {
+    transform: none;
+  }
+  .toast,
+  .toast.show {
+    transform: translate(-50%, 0);
+  }
+}

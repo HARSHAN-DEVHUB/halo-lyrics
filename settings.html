@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Halo Lyrics — Settings</title>
+    <link rel="stylesheet" href="/src/settings.css" />
+  </head>
+  <body>
+    <main class="wrap">
+      <header class="head">
+        <svg class="ring" viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="12" r="8.25" fill="none" stroke="currentColor" stroke-width="2.5" />
+        </svg>
+        <h1>Halo Lyrics</h1>
+        <span class="mono head-sub">Settings</span>
+      </header>
+
+      <section class="group">
+        <h2 class="mono">Look</h2>
+        <label class="row">
+          <span class="row-label">Word size</span>
+          <input type="range" id="wordSize" min="72" max="200" step="2" />
+          <output class="mono" id="wordSize-out"></output>
+        </label>
+        <label class="row">
+          <span class="row-label">Background blur</span>
+          <input type="range" id="blur" min="0" max="60" step="1" />
+          <output class="mono" id="blur-out"></output>
+        </label>
+        <label class="row">
+          <span class="row-label">Lyrics offset</span>
+          <input type="range" id="offsetMs" min="-2000" max="2000" step="50" />
+          <output class="mono" id="offsetMs-out"></output>
+        </label>
+        <label class="row check">
+          <span class="row-label">Hide the player bar</span>
+          <input type="checkbox" id="hidePlayerBar" />
+        </label>
+      </section>
+
+      <section class="group">
+        <h2 class="mono">Display</h2>
+        <label class="row">
+          <span class="row-label">Monitor</span>
+          <select id="monitor"></select>
+        </label>
+        <label class="row check">
+          <span class="row-label">Mirror on all displays</span>
+          <input type="checkbox" id="mirrorAll" />
+        </label>
+      </section>
+
+      <section class="group">
+        <h2 class="mono">Behaviour</h2>
+        <label class="row check">
+          <span class="row-label">Open automatically when music starts</span>
+          <input type="checkbox" id="autoOpen" />
+        </label>
+        <label class="row">
+          <span class="row-label">Close when music stops for</span>
+          <select id="autoCloseMinutes">
+            <option value="0">Never</option>
+            <option value="1">1 minute</option>
+            <option value="5">5 minutes</option>
+            <option value="10">10 minutes</option>
+            <option value="30">30 minutes</option>
+            <option value="60">60 minutes</option>
+          </select>
+        </label>
+        <label class="row check">
+          <span class="row-label">Launch at login</span>
+          <input type="checkbox" id="launchAtLogin" />
+        </label>
+      </section>
+
+      <section class="group">
+        <h2 class="mono">Lyrics</h2>
+        <div class="row">
+          <span class="row-label">Cache <span class="mono dim" id="cache-info"></span></span>
+          <button class="btn" id="clear-cache">Clear lyrics cache</button>
+        </div>
+        <p class="note">
+          Your own <span class="mono">.lrc</span> files in
+          <span class="mono" id="override-dir">Music/Lyrics</span>, named
+          <span class="mono">Artist - Title.lrc</span>, are used first.
+        </p>
+      </section>
+
+      <section class="group keys">
+        <h2 class="mono">Keys</h2>
+        <dl>
+          <dt class="mono">Ctrl/⌘ Shift L</dt><dd>Toggle lyrics mode</dd>
+          <dt class="mono">Esc</dt><dd>Close lyrics mode</dd>
+          <dt class="mono">Space</dt><dd>Play / pause</dd>
+          <dt class="mono">← →</dt><dd>Previous / next track</dd>
+          <dt class="mono">[ ]</dt><dd>Lyrics offset −/+ 100 ms</dd>
+          <dt class="mono">B</dt><dd>Cycle blur</dd>
+          <dt class="mono">H</dt><dd>Hide / show the player bar</dd>
+        </dl>
+      </section>
+
+      <footer class="foot mono">
+        Lyrics provided by <a href="https://lrclib.net" id="lrclib">LRCLIB</a>
+        <span class="dim" id="version"></span>
+      </footer>
+    </main>
+    <script type="module" src="/src/settings.ts"></script>
+  </body>
+</html>

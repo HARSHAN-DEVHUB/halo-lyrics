@@ -1,0 +1,116 @@
+//! User settings, stored as JSON in the app config dir.
+
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
+use std::path::Path;
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[serde(rename_all = "camelCase", default)]
+pub struct Settings {
+    /// Active word size in px (72..=200).
+    pub word_size: u32,
+    /// Background blur in px (0..=60).
+    pub blur: u32,
+    /// Added to the playback position for lyrics only (-2000..=2000 ms).
+    pub offset_ms: i32,
+    /// Monitor name; `None` = primary.
+    pub monitor: Option<String>,
+    pub mirror_all: bool,
+    pub auto_open: bool,
+    /// 0 = never.
+    pub auto_close_minutes: u32,
+    pub launch_at_login: bool,
+    pub hide_player_bar: bool,
+}
+
+impl Default for Settings {
+    fn default() -> Self {
+        Self {
+            word_size: 136,
+            blur: 14,
+            offset_ms: 0,
+            monitor: None,
+            mirror_all: false,
+            auto_open: false,
+            auto_close_minutes: 0,
+            launch_at_login: false,
+            hide_player_bar: false,
+        }
+    }
+}
+
+impl Settings {
+    pub fn clamp(&mut self) {
+        self.word_size = self.word_size.clamp(72, 200);
+        self.blur = self.blur.min(60);
+        self.offset_ms = self.offset_ms.clamp(-2000, 2000);
+        self.auto_close_minutes = self.auto_close_minutes.min(24 * 60);
+        if self.monitor.as_deref().is_some_and(|m| m.trim().is_empty() || m.len() > 256) {
+            self.monitor = None;
+        }
+    }
+
+    pub fn load(path: &Path) -> Self {
+        let mut s = std::fs::read(path)
+            .ok()
+            .and_then(|b| serde_json::from_slice::<Settings>(&b).ok())
+            .unwrap_or_default();
+        s.clamp();
+        s
+    }
+
+    pub fn save(&self, path: &Path) {
+        if let Some(dir) = path.parent() {
+            let _ = std::fs::create_dir_all(dir);
+        }
+        match serde_json::to_vec_pretty(self) {
+            Ok(bytes) => {
+                if let Err(e) = std::fs::write(path, bytes) {
+                    log::warn!("saving settings failed: {e}");
+                }
+            }
+            Err(e) => log::warn!("encoding settings failed: {e}"),
+        }
+    }
+
+    /// Applies a partial update (`{"blur": 20}`) and clamps the result.
+    pub fn merged(&self, patch: &Value) -> Result<Settings, String> {
+        let mut base = serde_json::to_value(self).map_err(|e| e.to_string())?;
+        let (Some(obj), Some(p)) = (base.as_object_mut(), patch.as_object()) else {
+            return Err("settings patch must be an object".into());
+        };
+        for (k, v) in p {
+            if obj.contains_key(k) {
+                obj.insert(k.clone(), v.clone());
+            }
+        }
+        let mut s: Settings = serde_json::from_value(base).map_err(|e| e.to_string())?;
+        s.clamp();
+        Ok(s)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn merge_and_clamp() {
+        let s = Settings::default();
+        let m = s.merged(&json!({"blur": 99, "offsetMs": -5000, "monitor": "X", "unknown": 1})).unwrap();
+        assert_eq!(m.blur, 60);
+        assert_eq!(m.offset_ms, -2000);
+        assert_eq!(m.monitor.as_deref(), Some("X"));
+        let m = m.merged(&json!({"monitor": null})).unwrap();
+        assert_eq!(m.monitor, None);
+        assert!(s.merged(&json!({"blur": "lots"})).is_err());
+    }
+
+    #[test]
+    fn missing_fields_take_defaults() {
+        let s: Settings = serde_json::from_str(r#"{"blur": 30}"#).unwrap();
+        assert_eq!(s.blur, 30);
+        assert_eq!(s.word_size, 136);
+    }
+}

@@ -1,0 +1,249 @@
+# Halo Lyrics
+
+**Full-screen, word-by-word synced lyrics for whatever is playing on your computer.**
+
+Halo Lyrics is a small desktop app for Windows and macOS. It lives in the system tray, notices what's playing (Spotify, YouTube in the browser, Apple Music, VLC, and more), fetches synced lyrics, and turns your screen into an ambient lyrics display over the blurred album art.
+
+Built with [Tauri 2](https://tauri.app) (Rust backend) and plain TypeScript + Vite (no frontend framework).
+
+---
+
+## Features
+
+- **Works with any player.** Reads the operating system's media controls, so there's nothing to connect or log in to.
+  - Windows: System Media Transport Controls (SMTC)
+  - macOS: MediaRemote, via [mediaremote-adapter](https://github.com/ungive/mediaremote-adapter)
+- **Word-by-word highlighting.** Uses enhanced-LRC word timing when available and synthesizes it otherwise.
+- **Free lyrics source.** Uses [LRCLIB](https://lrclib.net), so no API key is needed. Results are cached on disk.
+- **Your own lyrics win.** Drop `.lrc` or `.txt` files into a folder to override the downloaded lyrics.
+- **Smart title cleanup.** Handles YouTube titles like `Artist - Song (Official Video)`, VEVO and "- Topic" channels, `feat.` credits, and "Remastered 2011".
+- **Ambient look.** The album art is blurred and slowly drifts, and the text takes a tint from the artwork's colours. A clock appears when nothing is playing.
+- **Multi-monitor.** Pick a display, or mirror the lyrics on every display.
+- **Auto-open and auto-close.** Opens when music starts and closes after music stops (both optional).
+- **Keeps the screen awake** while lyrics are showing and music is playing.
+- **Safe full-screen.** Esc always gets you out, even if the app hangs (see [Safety](#safety-escape-hatches)).
+
+---
+
+## Using it
+
+### Start
+
+1. Launch Halo Lyrics. It opens full-screen and shows a clock if nothing is playing.
+2. Play a song in Spotify, YouTube (Chrome or Edge), or any media player.
+3. Lyrics appear within a second or two.
+
+The app keeps running in the **system tray** (the `^` arrow next to the clock on Windows, or the menu bar on macOS). Left-click the tray icon to toggle the lyrics screen. Right-click it for **Settings**, **Pause detection** and **Quit**.
+
+### Keyboard shortcuts
+
+| Key | Action |
+|---|---|
+| `Ctrl` + `Shift` + `L` (`⌘` + `Shift` + `L` on macOS) | Open or close the lyrics screen (works from anywhere) |
+| `Esc` (tap) | Close the lyrics screen. The app stays in the tray. |
+| `Esc` (hold 2 s) | **Force-quit the app** (emergency exit, Windows) |
+| `Space` | Play / pause |
+| `←` / `→` | Previous / next track |
+| `[` / `]` | Shift the lyrics timing by −/+ 0.1 s |
+| `B` | Cycle the background blur |
+| `H` | Hide or show the player bar |
+
+### What you'll see
+
+| Screen | Meaning |
+|---|---|
+| Lines moving with the song, active word highlighted | Synced lyrics found |
+| Slowly scrolling text marked *unsynced* | Only plain (untimed) lyrics exist |
+| Album art + title, or *Instrumental* | No lyrics found, or the track is instrumental |
+| Big clock | Nothing has been playing for 10 seconds |
+
+### Settings
+
+Open them from the tray menu → **Settings…**
+
+- **Look:** word size, background blur, lyrics offset, hide the player bar
+- **Display:** which monitor to use, mirror on all displays
+- **Behaviour:** auto-open when music starts, auto-close after music stops, launch at login
+- **Lyrics:** clear the lyrics cache
+
+### Using your own lyrics files
+
+Put a file named `Artist - Title.lrc` in your Music folder's `Lyrics` subfolder:
+
+- Windows: `C:\Users\<you>\Music\Lyrics\`
+- macOS: `~/Music/Lyrics/`
+
+Files with `[mm:ss.xx]` timestamps are shown synced; files without them are shown as plain text. Enhanced LRC word tags (`<mm:ss.xx>word`) are supported. Characters that aren't allowed in file names (`: / \ ? * " < > |`) can be left out or replaced with `_`. Files larger than 1 MB are ignored.
+
+### Tips for best results
+
+- **Spotify** and other music apps give the most accurate matches because they report the exact title and artist.
+- On **YouTube**, official music videos and "Artist - Topic" uploads match best. Covers, remixes, "lyrics" edits and oddly named videos often don't.
+- If lyrics are a little early or late, press `[` or `]`, or set the offset in Settings.
+- LRCLIB is community-run. Most popular songs are there, including many non-English songs, but not every song is. You can [contribute missing lyrics](https://lrclib.net).
+
+---
+
+## Running from source
+
+### Prerequisites
+
+| Tool | Version | Notes |
+|---|---|---|
+| [Node.js](https://nodejs.org) | 20.19+ or 22+ | Required by Vite 7 |
+| [Rust](https://rustup.rs) | 1.82+ | Install with `rustup` |
+| **Windows:** [Microsoft C++ Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) | — | Select the "Desktop development with C++" workload |
+| **Windows:** WebView2 | — | Preinstalled on Windows 10 (recent) and 11 |
+| **macOS:** Xcode Command Line Tools | — | `xcode-select --install` |
+
+See Tauri's [prerequisites guide](https://v2.tauri.app/start/prerequisites/) if anything is missing.
+
+### Install and run (development)
+
+```bash
+git clone https://github.com/<your-name>/halo-lyrics.git
+cd halo-lyrics
+npm install
+npm run tauri dev
+```
+
+The first run compiles the Rust side and can take a few minutes; later runs are fast. `npm run tauri dev` starts the Vite dev server on port **1420** and opens the app. Stop it with **Quit** in the tray menu or `Ctrl+C` in the terminal.
+
+> **Low-spec laptop?** Limit the compile so it doesn't eat every core:
+> - PowerShell: `$env:CARGO_BUILD_JOBS=4; npm run tauri dev`
+> - bash/zsh: `CARGO_BUILD_JOBS=4 npm run tauri dev`
+
+### Preview the UI in a browser (no Rust needed)
+
+```bash
+npm run dev
+```
+
+Open <http://localhost:1420>. Outside Tauri, the page runs in **demo mode** with a built-in fake song, which is handy for working on the look. You can force demo mode inside the app with `?demo`.
+
+### Build an installer
+
+```bash
+npm run tauri build
+```
+
+Release builds use LTO and are slow, so expect 10–20 minutes on a laptop. Output goes to:
+
+- Windows: `src-tauri/target/release/bundle/msi/` and `.../bundle/nsis/`
+- macOS: `src-tauri/target/release/bundle/dmg/` and `.../bundle/macos/`
+
+### macOS: media adapter
+
+Since macOS 15.4, apps can't read "Now Playing" directly. Halo Lyrics bundles [ungive/mediaremote-adapter](https://github.com/ungive/mediaremote-adapter), which is **not committed** to this repo. Before building on macOS, build or download it and place these files:
+
+```
+src-tauri/resources/macos/mediaremote-adapter.pl
+src-tauri/resources/macos/MediaRemoteAdapter.framework/
+```
+
+If the adapter is missing, the app falls back to polling Spotify and Apple Music through AppleScript. Windows builds don't need this.
+
+### Tests
+
+```bash
+npm test              # frontend: timing / sync logic (node --test)
+npm run test:rust     # backend: LRC parser, title cleanup, matching, cache, artwork
+npx tsc --noEmit      # type-check
+```
+
+---
+
+## Safety: escape hatches
+
+The lyrics screen is full-screen and always on top. To make sure it can never lock you out of your computer:
+
+1. **Esc kill switch (Windows).** A dedicated background thread watches the physical Esc key with `GetAsyncKeyState`. It doesn't depend on the window, the web page or the app's main thread, so it still works if those hang. It doesn't block Esc for other apps.
+   - **Tap Esc:** the lyrics screen closes. If it hasn't closed within 2 s, the app terminates itself.
+   - **Hold Esc for 2 s:** the app terminates immediately.
+2. **Load watchdog.** If the lyrics page hasn't started within 12 s of being shown (for example, the dev server isn't running), the screen hides itself instead of leaving a black window.
+3. **The page's own Esc handler**, registered before anything else on the page runs.
+4. **Tray → Quit**, and `Ctrl+Shift+L` to toggle.
+
+The logic lives in [`src-tauri/src/safety.rs`](src-tauri/src/safety.rs).
+
+---
+
+## Troubleshooting
+
+| Problem | Fix |
+|---|---|
+| Screen is stuck or black | Tap **Esc**. If that doesn't help, **hold Esc for 2 seconds**. As a last resort, use `Ctrl+Shift+Esc` → Task Manager → end `halo-lyrics.exe`. |
+| `Port 1420 is already in use` | An old dev server is still running. Close the old terminal, or end the `node.exe` process running Vite. |
+| No song detected | Check that the player shows up in the Windows volume / media flyout. Some players don't publish media info. Make sure **Pause detection** in the tray menu is unchecked. |
+| Song detected but "no lyrics" | The song may not be on LRCLIB, or the title is unusual (common with YouTube). Add your own `.lrc` file (see above). |
+| Wrong lyrics | Clear the lyrics cache in Settings, or add an override `.lrc` file. |
+| `Ctrl+Shift+L` does nothing | Another app has taken that shortcut. Use the tray icon instead. |
+| Build fails on Windows with linker errors | Install the C++ Build Tools ("Desktop development with C++"). |
+
+### Where files are stored (Windows)
+
+| What | Location |
+|---|---|
+| Settings | `%APPDATA%\app.halolyrics.desktop\settings.json` |
+| Lyrics cache | `%APPDATA%\app.halolyrics.desktop\lyrics-cache\` |
+| Logs | `%LOCALAPPDATA%\app.halolyrics.desktop\logs\halo-lyrics.log` |
+| Your lyrics overrides | `%USERPROFILE%\Music\Lyrics\` |
+
+On macOS these are under `~/Library/Application Support/app.halolyrics.desktop/` and `~/Library/Logs/app.halolyrics.desktop/`.
+
+---
+
+## How it works
+
+```
+ OS media controls ──► media/ (SMTC on Windows, adapter on macOS)
+                          │  raw snapshots (title, artist, position, artwork)
+                          ▼
+                       hub.rs ──► artwork.rs (resize, JPEG, colour palette)
+                          │   ──► lyrics/ (override folder → cache → LRCLIB → LRC parser)
+                          │   ──► auto-open / auto-close / keep-awake
+                          ▼
+            "now-playing" + "lyrics" events
+                          ▼
+     Web UI (src/): playback clock, word timing, rendering
+```
+
+### Project layout
+
+```
+index.html, settings.html     The two windows
+src/
+  main.ts                     Lyrics window: state, frame loop, keyboard
+  settings.ts                 Settings window
+  sync.ts                     Playback clock + line/word timing (unit-tested)
+  color.ts                    OKLCH tint from the artwork palette
+  demo.ts                     Fake song for browser/demo mode
+  render/                     Background, lyrics stage, idle clock
+src-tauri/
+  src/main.rs                 Commands, tray, global shortcut, startup
+  src/ui.rs                   Full-screen window placement, mirrors, settings window
+  src/safety.rs               Esc kill switch + load watchdog
+  src/hub.rs                  Turns media snapshots into UI events
+  src/media/                  Windows SMTC / macOS adapter
+  src/lyrics/                 LRCLIB client, LRC parser, title/artist normalisation, cache
+  src/artwork.rs              Artwork processing + palette
+  src/power.rs                Keep the display awake
+  src/settings.rs             Settings file (validated + clamped)
+```
+
+### Privacy
+
+The only network requests are to `lrclib.net`, sending the song title, artist, album and duration to look up lyrics. Nothing else leaves your computer. There's no analytics and no account.
+
+---
+
+## Credits
+
+- Lyrics: [LRCLIB](https://lrclib.net), a free, open lyrics database
+- macOS now-playing: [ungive/mediaremote-adapter](https://github.com/ungive/mediaremote-adapter)
+- Fonts: [Geist](https://vercel.com/font) and [Instrument Serif](https://github.com/Instrument/instrument-serif), both under the SIL Open Font License (see `public/fonts/OFL-*.txt`)
+- Built with [Tauri](https://tauri.app) and [Vite](https://vite.dev)
+
+## License
+
+No license has been chosen yet. Add a `LICENSE` file (MIT is a common choice) before publishing if you want others to be able to use the code.

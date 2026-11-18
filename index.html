@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Halo Lyrics</title>
+    <link rel="stylesheet" href="/src/styles.css" />
+  </head>
+  <body>
+    <div id="app" class="app" data-mode="loading">
+      <!-- 1. artwork background (layers are added by render/background.ts) -->
+      <div class="bg" id="bg" aria-hidden="true">
+        <div class="bg-dim"></div>
+      </div>
+      <!-- 2. vignette -->
+      <div class="vignette" aria-hidden="true"></div>
+      <!-- 3. bottom shade, only while the player bar is visible -->
+      <div class="shade" aria-hidden="true"></div>
+
+      <!-- 4. lyrics stage -->
+      <main class="stage" id="stage" aria-live="off"></main>
+
+      <section class="plain" id="plain" aria-label="Lyrics (unsynced)">
+        <div class="plain-inner" id="plain-inner"></div>
+      </section>
+
+      <section class="card" id="card">
+        <img class="card-art" id="card-art" alt="" />
+        <h1 class="card-title" id="card-title"></h1>
+        <p class="card-artist" id="card-artist"></p>
+        <p class="card-note mono" id="card-note"></p>
+        <div class="dots card-dots" id="card-dots" aria-hidden="true"><i></i><i></i><i></i></div>
+      </section>
+
+      <section class="idle" id="idle" aria-label="Clock">
+        <div class="idle-clock" id="idle-clock">--:--</div>
+        <div class="idle-date mono" id="idle-date"></div>
+      </section>
+
+      <span class="unsynced mono" id="unsynced">unsynced</span>
+
+      <!-- 5. player bar -->
+      <footer class="bar chrome" id="bar">
+        <img class="bar-thumb" id="bar-thumb" alt="" />
+        <div class="bar-meta">
+          <div class="bar-title" id="bar-title"></div>
+          <div class="bar-artist" id="bar-artist"></div>
+        </div>
+        <div class="bar-controls">
+          <button class="btn" id="btn-prev" title="Previous (←)" aria-label="Previous track">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5h2v14H6zM20 5v14L9.5 12z" /></svg>
+          </button>
+          <button class="btn btn-play" id="btn-play" title="Play / pause (Space)" aria-label="Play or pause">
+            <svg class="i-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg>
+            <svg class="i-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z" /></svg>
+          </button>
+          <button class="btn" id="btn-next" title="Next (→)" aria-label="Next track">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 5h2v14h-2zM4 5v14l10.5-7z" /></svg>
+          </button>
+        </div>
+        <div class="bar-progress">
+          <span class="mono bar-time" id="bar-elapsed">0:00</span>
+          <div class="bar-track"><div class="bar-fill" id="bar-fill"></div></div>
+          <span class="mono bar-time" id="bar-total">0:00</span>
+        </div>
+      </footer>
+
+      <!-- 6. top-left label -->
+      <header class="label chrome">
+        <svg class="ring" viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="12" r="8.25" fill="none" stroke="currentColor" stroke-width="2.5" />
+        </svg>
+        <span class="mono" id="label-text">LYRICS</span>
+      </header>
+
+      <div class="toast mono" id="toast" role="status"></div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
