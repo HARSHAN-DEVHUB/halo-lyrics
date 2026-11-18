@@ -2,7 +2,7 @@
 //! extract a 5-colour palette (median cut on a 64×64 thumbnail).
 
 use base64::Engine as _;
-use image::{imageops::FilterType, DynamicImage, GenericImageView, ImageFormat};
+use image::{imageops::FilterType, DynamicImage, GenericImageView, ImageFormat, ImageReader, Limits};
 use serde::Serialize;
 use std::io::Cursor;
 
@@ -10,6 +10,20 @@ use std::io::Cursor;
 /// (the background is scaled up a little for its slow drift).
 pub const MAX_SIDE: u32 = 2048;
 const JPEG_QUALITY: u8 = 90;
+/// Artwork comes from other apps and from the internet: refuse images whose
+/// header claims absurd dimensions instead of trying to allocate them.
+const MAX_DECODE_SIDE: u32 = 8192;
+const MAX_DECODE_BYTES: u64 = 300 * 1024 * 1024;
+
+fn decode(bytes: &[u8]) -> Option<DynamicImage> {
+    let mut limits = Limits::default();
+    limits.max_image_width = Some(MAX_DECODE_SIDE);
+    limits.max_image_height = Some(MAX_DECODE_SIDE);
+    limits.max_alloc = Some(MAX_DECODE_BYTES);
+    let mut reader = ImageReader::new(Cursor::new(bytes)).with_guessed_format().ok()?;
+    reader.limits(limits);
+    reader.decode().ok()
+}
 
 #[derive(Serialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -24,7 +38,7 @@ pub struct Artwork {
 }
 
 pub fn process(bytes: &[u8]) -> Option<Artwork> {
-    let img = image::load_from_memory(bytes).ok()?;
+    let img = decode(bytes)?;
     let img = crop_letterbox(img);
     let (w, h) = img.dimensions();
     if w == 0 || h == 0 {
@@ -278,6 +292,15 @@ mod tests {
         let cropped = crop_letterbox(DynamicImage::ImageRgb8(img));
         let (w, h) = cropped.dimensions();
         assert!((175..=195).contains(&w) && h == 180, "{w}x{h}");
+    }
+
+    #[test]
+    fn oversized_images_are_rejected() {
+        let mut png = Vec::new();
+        DynamicImage::ImageRgb8(RgbImage::new(9000, 2))
+            .write_to(&mut Cursor::new(&mut png), ImageFormat::Png)
+            .unwrap();
+        assert!(process(&png).is_none());
     }
 
     #[test]

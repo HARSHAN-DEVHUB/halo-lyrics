@@ -590,6 +590,40 @@ body {
   color: var(--tint);
 }
 
+/* ---------------------------------------------------------------- 7. window controls */
+.winctl {
+  position: absolute;
+  top: 18px;
+  right: 22px;
+  display: flex;
+  gap: 6px;
+}
+.winctl .btn {
+  background: rgba(20, 18, 24, 0.45);
+  -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+.winctl .btn:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+.winctl .btn-close:hover {
+  background: rgba(220, 60, 60, 0.85);
+}
+/* Full screen shows "shrink to window"; window mode shows "grow to full screen". */
+.app[data-window="window"] .winctl .i-shrink,
+.app:not([data-window="window"]) .winctl .i-grow {
+  display: none;
+}
+/* In window mode the title bar already has a close button. */
+.app[data-window="window"] .winctl .btn-close {
+  display: none;
+}
+/* Keep the "unsynced" tag clear of the controls. */
+.unsynced {
+  right: 140px;
+}
+
 /* ---------------------------------------------------------------- toast */
 .toast {
   position: absolute;

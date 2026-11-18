@@ -6,6 +6,7 @@
 
 use crate::{safety, AppState};
 use serde::Serialize;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Mutex, MutexGuard};
 use tauri::window::Color;
 use tauri::{
@@ -20,6 +21,9 @@ const BG: Color = Color(9, 9, 12, 255);
 
 /// Serialises show/hide so rapid shortcut/tray presses can't interleave.
 static UI_LOCK: Mutex<()> = Mutex::new(());
+/// The lyrics window has a size/position the user may have changed in window
+/// mode; keep it when the window is shown again. Cleared by full screen.
+static WINDOW_PLACED: AtomicBool = AtomicBool::new(false);
 
 fn ui_lock() -> MutexGuard<'static, ()> {
     UI_LOCK.lock().unwrap_or_else(|e| e.into_inner())
@@ -78,6 +82,8 @@ pub fn list_monitors(app: &AppHandle) -> Vec<MonitorInfo> {
 }
 
 fn place(w: &WebviewWindow, m: &Monitor) {
+    WINDOW_PLACED.store(false, Ordering::SeqCst);
+    let _ = w.set_decorations(false);
     let pos = *m.position();
     let size = *m.size();
     // Leave full screen first so the window can move to another display.
@@ -96,19 +102,51 @@ fn place(w: &WebviewWindow, m: &Monitor) {
     let _ = w.set_always_on_top(true);
 }
 
+/// Window mode: an ordinary window with a title bar (minimise, maximise, close),
+/// in the taskbar and not on top. The first time it gets a comfortable size,
+/// centred on the chosen display; after that it keeps where the user put it.
+fn place_windowed(w: &WebviewWindow, m: Option<&Monitor>) {
+    let _ = w.set_always_on_top(false);
+    let _ = w.set_fullscreen(false);
+    let _ = w.set_decorations(true);
+    let _ = w.set_resizable(true);
+    let _ = w.set_skip_taskbar(false);
+    if WINDOW_PLACED.swap(true, Ordering::SeqCst) {
+        return;
+    }
+    match m {
+        Some(m) => {
+            let area = *m.size();
+            let pos = *m.position();
+            let width = (area.width as f64 * 0.7).max(960.0).min(area.width as f64) as u32;
+            let height = (area.height as f64 * 0.72).max(600.0).min(area.height as f64) as u32;
+            let _ = w.set_size(Size::Physical(PhysicalSize::new(width, height)));
+            let _ = w.set_position(Position::Physical(PhysicalPosition::new(
+                pos.x + (area.width as i32 - width as i32) / 2,
+                pos.y + (area.height as i32 - height as i32) / 2,
+            )));
+        }
+        None => {
+            let _ = w.center();
+        }
+    }
+}
+
 pub fn show_lyrics(app: &AppHandle) {
     let Some(main) = app.get_webview_window(MAIN) else {
         return;
     };
     let _guard = ui_lock();
-    // Arm the Esc kill switch before anything can cover the screen.
-    safety::set_overlay_active(true);
     let state = app.state::<AppState>();
     let settings = state
         .settings
         .lock()
         .unwrap_or_else(|e| e.into_inner())
         .clone();
+    let windowed = settings.windowed();
+    // Arm the Esc kill switch before anything can cover the screen. A normal
+    // window can't trap anyone, and there Esc belongs to whatever app has focus.
+    safety::set_overlay_active(!windowed);
     let monitors = main.available_monitors().unwrap_or_default();
     let primary = main.primary_monitor().ok().flatten();
 
@@ -130,20 +168,28 @@ pub fn show_lyrics(app: &AppHandle) {
         })
         .or(if monitors.is_empty() { None } else { Some(0) });
 
-    match target_idx.and_then(|i| monitors.get(i)) {
-        Some(m) => place(&main, m),
-        None => {
-            let _ = main.set_fullscreen(true);
+    let target = target_idx.and_then(|i| monitors.get(i));
+    if windowed {
+        place_windowed(&main, target);
+    } else {
+        let _ = main.set_skip_taskbar(true);
+        match target {
+            Some(m) => place(&main, m),
+            None => {
+                let _ = main.set_decorations(false);
+                let _ = main.set_fullscreen(true);
+            }
         }
     }
+    let _ = main.unminimize();
     let _ = main.show();
     let _ = main.set_focus();
-    log::info!("lyrics overlay shown");
+    log::info!("lyrics shown ({})", if windowed { "window" } else { "full screen" });
     safety::watch_frontend_load(app);
 
-    // Mirrors on every other display.
+    // Mirrors on every other display (full screen only).
     let mut used = 0;
-    if settings.mirror_all {
+    if settings.mirror_all && !windowed {
         for (i, m) in monitors.iter().enumerate() {
             if Some(i) == target_idx {
                 continue;

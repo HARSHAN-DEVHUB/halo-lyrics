@@ -1,8 +1,10 @@
 # Halo Lyrics
 
-**Full-screen, word-by-word synced lyrics for whatever is playing on your computer.**
+**Word-by-word synced lyrics for whatever is playing on your computer, full screen or in a window.**
 
-Halo Lyrics is a small desktop app for Windows and macOS. It lives in the system tray, notices what's playing (Spotify, YouTube in the browser, Apple Music, VLC, and more), fetches synced lyrics, and turns your screen into an ambient lyrics display over the blurred album art.
+Halo Lyrics is a small desktop app for Windows and macOS. It notices what's playing (Spotify, YouTube in the browser, Apple Music, VLC, and more), fetches synced lyrics, and shows them over the album art, either covering the whole screen or in a normal window you can move, resize and close.
+
+- [Install](#install-windows) · [Uninstall](#uninstall-windows) · [Using it](#using-it) · [Running from source](#running-from-source)
 
 Built with [Tauri 2](https://tauri.app) (Rust backend) and plain TypeScript + Vite (no frontend framework).
 
@@ -20,6 +22,8 @@ Built with [Tauri 2](https://tauri.app) (Rust backend) and plain TypeScript + Vi
 - **Ambient look.** The album art is blurred and slowly drifts, and the text takes a tint from the artwork's colours. A clock appears when nothing is playing.
 - **Styles you can pick.** Four lyrics styles (Cinematic, Karaoke, Minimal, Party) and four backgrounds (Album art, Colour gradient, Plain dark, Art on the side), chosen separately in Settings or cycled with `S` and `G`.
 - **Sharp artwork.** Browsers only hand the OS a small thumbnail, so when the cover is small the app fetches the same song's cover in high resolution (up to 2000 px) from iTunes or Deezer. It only swaps when the title and artist match, and it can be turned off.
+- **Full screen or a window.** Switch any time with `F` / `F11` or the button at the top right. In a window you get the usual title bar with minimise, maximise and close.
+- **Closes like a normal app.** The ✕ button quits Halo Lyrics. If you prefer, Settings can make ✕ hide it to the tray instead, so it can open by itself when music starts.
 - **One copy at a time.** Starting the app again just brings up the copy that's already running.
 - **Multi-monitor.** Pick a display, or mirror the lyrics on every display.
 - **Auto-open and auto-close.** Opens when music starts and closes after music stops (both optional).
@@ -28,23 +32,60 @@ Built with [Tauri 2](https://tauri.app) (Rust backend) and plain TypeScript + Vi
 
 ---
 
+## Install (Windows)
+
+You need the installer file, `Halo Lyrics_0.1.0_x64-setup.exe`. To make it yourself, see [Build the installer](#build-the-installer); it ends up in `src-tauri\target\release\bundle\nsis\`.
+
+1. Double-click **`Halo Lyrics_0.1.0_x64-setup.exe`**.
+2. Windows may show **"Windows protected your PC"**. This appears for every app that isn't signed with a paid code-signing certificate; it doesn't mean anything was found. Click **More info → Run anyway**.
+3. Follow the installer. It installs for your user account only, so it doesn't need administrator rights. If the WebView2 runtime is missing (rare on Windows 10/11), the installer downloads it.
+4. Start **Halo Lyrics** from the Start menu.
+
+There's also an `.msi` installer in `src-tauri\target\release\bundle\msi\` if you prefer that format; it installs for all users and asks for administrator rights. Use one installer or the other, not both.
+
+To update, run the newer installer over the old one. Your settings and lyrics cache are kept.
+
+## Uninstall (Windows)
+
+1. Quit Halo Lyrics: close its window with ✕, or right-click the tray icon → **Quit Halo Lyrics**.
+2. If you turned on **Launch at login**, turn it off first in Settings (this removes the start-up entry).
+3. Open **Settings → Apps → Installed apps**, find **Halo Lyrics**, click **⋯ → Uninstall**. (Or Start menu → Halo Lyrics folder → **Uninstall**, or **Control Panel → Programs and Features**.)
+4. In the uninstaller, tick **Delete the application data** to also remove your settings, lyrics cache and logs.
+
+If you didn't tick that box, or used the `.msi`, you can delete these folders by hand afterwards:
+
+| Folder | Contains |
+|---|---|
+| `%APPDATA%\app.halolyrics.desktop` | Settings, lyrics cache |
+| `%LOCALAPPDATA%\app.halolyrics.desktop` | Logs, web view data |
+| `%USERPROFILE%\Music\Lyrics` | Your own `.lrc` files (only if you made them; keep them if you want) |
+
+Paste a path into the File Explorer address bar to open it.
+
+---
+
 ## Using it
 
 ### Start
 
-1. Launch Halo Lyrics. It opens full-screen and shows a clock if nothing is playing.
+1. Launch Halo Lyrics. It opens full screen (or in a window, if you chose that) and shows a clock if nothing is playing.
 2. Play a song in Spotify, YouTube (Chrome or Edge), or any media player.
 3. Lyrics appear within a second or two.
 
-The app keeps running in the **system tray** (the `^` arrow next to the clock on Windows, or the menu bar on macOS). Left-click the tray icon to toggle the lyrics screen. Right-click it for **Settings**, **Pause detection** and **Quit**.
+**Window controls:** move the mouse and two buttons appear at the top right: **⤡** switches between full screen and a window, **✕** closes. In a window, the normal title bar has minimise, maximise and close.
+
+**Closing:** ✕ quits the app (you can change this in Settings → Display so that it hides to the tray instead). Esc closes the full-screen view.
+
+**Tray icon:** Halo Lyrics also has a tray icon. On Windows 11 it's usually hidden under the `^` arrow next to the clock; drag it onto the taskbar to keep it visible. Left-click it to show or hide the lyrics. Right-click it for **Settings**, **Pause detection** and **Quit**.
 
 ### Keyboard shortcuts
 
 | Key | Action |
 |---|---|
 | `Ctrl` + `Shift` + `L` (`⌘` + `Shift` + `L` on macOS) | Open or close the lyrics screen (works from anywhere) |
-| `Esc` (tap) | Close the lyrics screen. The app stays in the tray. |
-| `Esc` (hold 2 s) | **Force-quit the app** (emergency exit, Windows) |
+| `F` or `F11` | Switch between full screen and a window |
+| `Esc` (tap, full screen) | Close the full-screen lyrics. The app stays in the tray. |
+| `Esc` (hold 2 s, full screen) | **Force-quit the app** (emergency exit, Windows) |
 | `Space` | Play / pause |
 | `←` / `→` | Previous / next track |
 | `[` / `]` | Shift the lyrics timing by −/+ 0.1 s |
@@ -69,7 +110,7 @@ Open them with the sliders button on the player bar, the `,` key, or the tray me
 
 - **Style:** lyrics style and background style, each picked from preview cards (see below)
 - **Look:** word size, background blur, lyrics offset, hide the player bar, high-resolution artwork
-- **Display:** which monitor to use, mirror on all displays
+- **Display:** full screen or a window, whether ✕ quits or hides to the tray, which monitor to use, mirror on all displays (full screen only)
 - **Behaviour:** auto-open when music starts, auto-close after music stops, launch at login
 - **Lyrics:** clear the lyrics cache
 
@@ -134,7 +175,9 @@ npm install
 npm run tauri dev
 ```
 
-The first run compiles the Rust side and can take a few minutes; later runs are fast. `npm run tauri dev` starts the Vite dev server on port **1420** and opens the app. Stop it with **Quit** in the tray menu or `Ctrl+C` in the terminal.
+The first run compiles the Rust side and can take a few minutes; later runs are fast. `npm run tauri dev` starts the Vite dev server on port **1420** and opens the app. Stop it by closing the window with ✕, with **Quit** in the tray menu, or with `Ctrl+C` in the terminal.
+
+`npm run tauri dev` is only for working on the code. For everyday use, [build the installer](#build-the-installer) and [install](#install-windows) the app.
 
 > **Low-spec laptop?** Limit the compile so it doesn't eat every core:
 > - PowerShell: `$env:CARGO_BUILD_JOBS=4; npm run tauri dev`
@@ -148,16 +191,19 @@ npm run dev
 
 Open <http://localhost:1420>. Outside Tauri, the page runs in **demo mode** with a built-in fake song, which is handy for working on the look. You can force demo mode inside the app with `?demo`.
 
-### Build an installer
+### Build the installer
 
-```bash
-npm run tauri build
+```powershell
+npm install
+$env:CARGO_BUILD_JOBS=4; npm run tauri build
 ```
 
-Release builds use LTO and are slow, so expect 10–20 minutes on a laptop. Output goes to:
+Release builds are fully optimised and slow, so expect 10–20 minutes on a laptop (the first time, Tauri also downloads the NSIS and WiX installer tools). Output goes to:
 
-- Windows: `src-tauri/target/release/bundle/msi/` and `.../bundle/nsis/`
+- Windows: `src-tauri\target\release\bundle\nsis\Halo Lyrics_<version>_x64-setup.exe` (recommended) and `src-tauri\target\release\bundle\msi\Halo Lyrics_<version>_x64_en-US.msi`
 - macOS: `src-tauri/target/release/bundle/dmg/` and `.../bundle/macos/`
+
+Then follow [Install](#install-windows). To release a new version, raise `version` in `src-tauri/tauri.conf.json` (and `package.json`, `src-tauri/Cargo.toml`) before building.
 
 ### macOS: media adapter
 
@@ -182,14 +228,23 @@ npx tsc --noEmit      # type-check
 
 ## Safety: escape hatches
 
-The lyrics screen is full-screen and always on top. To make sure it can never lock you out of your computer:
+In full-screen mode the lyrics cover the whole screen and stay on top. To make sure that can never lock you out of your computer:
 
-1. **Esc kill switch (Windows).** A dedicated background thread watches the physical Esc key with `GetAsyncKeyState`. It doesn't depend on the window, the web page or the app's main thread, so it still works if those hang. It doesn't block Esc for other apps.
+1. **Esc kill switch (Windows, full screen only).** In window mode it's switched off, because the window can't trap you and Esc belongs to whatever app you're using. A dedicated background thread watches the physical Esc key with `GetAsyncKeyState`. It doesn't depend on the window, the web page or the app's main thread, so it still works if those hang. It doesn't block Esc for other apps.
    - **Tap Esc:** the lyrics screen closes. If it hasn't closed within 2 s, the app terminates itself.
    - **Hold Esc for 2 s:** the app terminates immediately.
 2. **Load watchdog.** If the lyrics page hasn't started within 12 s of being shown (for example, the dev server isn't running), the screen hides itself instead of leaving a black window.
 3. **The page's own Esc handler**, registered before anything else on the page runs.
-4. **Tray → Quit**, and `Ctrl+Shift+L` to toggle.
+4. **The ✕ button** at the top right (move the mouse to show it), **Tray → Quit**, and `Ctrl+Shift+L` to toggle.
+
+### Security
+
+- The web pages can only load the app's own files: a strict Content-Security-Policy blocks remote scripts, styles and connections, and the Tauri JavaScript API isn't exposed globally.
+- The pages may only call the app's own commands plus closing/hiding a window and opening a link. Every settings change is validated and clamped in Rust.
+- Network requests use HTTPS only, have timeouts and size limits, and only go to the services listed under [Privacy](#privacy). Cover images are only downloaded from Apple's and Deezer's image servers.
+- Images from players and the internet are decoded with size and memory limits, so a broken or malicious image can't exhaust memory.
+- Crashes and page errors are written to the log file, which stays on your computer.
+- The installer isn't code-signed (that needs a paid certificate), which is why Windows shows the "Windows protected your PC" notice on first install.
 
 The logic lives in [`src-tauri/src/safety.rs`](src-tauri/src/safety.rs).
 
@@ -200,6 +255,8 @@ The logic lives in [`src-tauri/src/safety.rs`](src-tauri/src/safety.rs).
 | Problem | Fix |
 |---|---|
 | Screen is stuck or black | Tap **Esc**. If that doesn't help, **hold Esc for 2 seconds**. As a last resort, use `Ctrl+Shift+Esc` → Task Manager → end `halo-lyrics.exe`. |
+| Can't find the window or the tray icon | Press `Ctrl+Shift+L`. The tray icon is often hidden under the `^` arrow next to the clock. |
+| "Windows protected your PC" when installing | Expected for unsigned apps: **More info → Run anyway**. |
 | `Port 1420 is already in use` | An old dev server is still running. Close the old terminal, or end the `node.exe` process running Vite. |
 | No song detected | Check that the player shows up in the Windows volume / media flyout. Some players don't publish media info. Make sure **Pause detection** in the tray menu is unchecked. |
 | Song detected but "no lyrics" | The song may not be on LRCLIB, or the title is unusual (common with YouTube). Add your own `.lrc` file (see above). |

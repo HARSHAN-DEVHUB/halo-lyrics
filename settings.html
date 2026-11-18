@@ -109,6 +109,21 @@
       <section class="group">
         <h2 class="mono">Display</h2>
         <label class="row">
+          <span class="row-label">Show lyrics as</span>
+          <select id="windowMode">
+            <option value="fullscreen">Full screen</option>
+            <option value="window">A window</option>
+          </select>
+        </label>
+        <label class="row check">
+          <span class="row-label">Closing the window quits Halo Lyrics</span>
+          <input type="checkbox" id="closeQuits" />
+        </label>
+        <p class="note">
+          Turn this off to keep Halo Lyrics running in the tray when you close it, so it can open by itself
+          when music starts.
+        </p>
+        <label class="row">
           <span class="row-label">Monitor</span>
           <select id="monitor"></select>
         </label>
@@ -158,7 +173,8 @@
         <h2 class="mono">Keys</h2>
         <dl>
           <dt class="mono">Ctrl/⌘ Shift L</dt><dd>Toggle lyrics mode</dd>
-          <dt class="mono">Esc</dt><dd>Close lyrics mode</dd>
+          <dt class="mono">Esc</dt><dd>Close full-screen lyrics</dd>
+          <dt class="mono">F / F11</dt><dd>Full screen ⇄ window</dd>
           <dt class="mono">Space</dt><dd>Play / pause</dd>
           <dt class="mono">← →</dt><dd>Previous / next track</dd>
           <dt class="mono">[ ]</dt><dd>Lyrics offset −/+ 100 ms</dd>

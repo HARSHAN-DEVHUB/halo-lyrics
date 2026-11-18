@@ -47,6 +47,9 @@ export type Settings = {
   lyricsStyle: LyricsStyle;
   backgroundStyle: BackgroundStyle;
   hdArtwork: boolean;
+  windowMode: "fullscreen" | "window";
+  /** The window's ✕ quits the app (otherwise it hides to the tray). */
+  closeQuits: boolean;
 };
 
 // Keep in step with LYRICS_STYLES / BACKGROUND_STYLES in src-tauri/src/settings.rs.

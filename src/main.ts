@@ -26,12 +26,17 @@ const LOADER_MIN_MS = 700;
 const isTauri = "__TAURI_INTERNALS__" in window;
 const demoMode = !isTauri || new URLSearchParams(location.search).has("demo");
 
+/** Window mode (a normal window) instead of full screen; set from settings. */
+let windowed = false;
+
 // Esc must work even if anything below fails, so it is wired up first.
 // (On Windows the backend also watches Esc natively; see src-tauri/src/safety.rs.)
+// Full screen: Esc closes the lyrics. Window mode: Esc does nothing, like in a
+// normal app; the title bar has the usual minimise / maximise / close buttons.
 window.addEventListener(
   "keydown",
   (e) => {
-    if (e.key !== "Escape") return;
+    if (e.key !== "Escape" || windowed) return;
     e.preventDefault();
     if (!demoMode) invoke("close_lyrics").catch(() => {});
   },
@@ -76,6 +81,8 @@ let settings: Settings = {
   lyricsStyle: "cinematic",
   backgroundStyle: "artwork",
   hdArtwork: true,
+  windowMode: "fullscreen",
+  closeQuits: true,
 };
 let np: NowPlaying | null = null;
 let artCache: { key: string; art: Artwork } | null = null;
@@ -275,6 +282,10 @@ function applySettings(s: Settings) {
   app.classList.toggle("no-bar", s.hidePlayerBar);
   app.dataset.layout = s.lyricsStyle;
   app.dataset.bg = s.backgroundStyle;
+  app.dataset.window = s.windowMode;
+  windowed = s.windowMode === "window";
+  const modeBtn = $("btn-mode");
+  modeBtn.title = windowed ? "Full screen (F)" : "Window (F)";
   plain.measure();
   kick();
 }
@@ -356,6 +367,12 @@ window.addEventListener("keydown", (e) => {
       e.preventDefault();
       openSettings();
       break;
+    case "f":
+    case "F":
+    case "F11":
+      e.preventDefault();
+      toggleWindowMode();
+      break;
     case "s":
     case "S": {
       const lyricsStyle = nextOf(LYRICS_STYLES, settings.lyricsStyle);
@@ -382,7 +399,20 @@ function openSettings() {
   else invoke("open_settings").catch((e) => console.warn("open_settings", e));
 }
 
+function toggleWindowMode() {
+  const windowMode = windowed ? "fullscreen" : "window";
+  updateSettings({ windowMode });
+  toast(windowMode === "window" ? "Window" : "Full screen");
+}
+
+function closeWindow() {
+  if (demo) toast("Close works in the app, not in the browser demo");
+  else invoke("close_window").catch((e) => console.warn("close_window", e));
+}
+
 $("btn-settings").addEventListener("click", openSettings);
+$("btn-mode").addEventListener("click", toggleWindowMode);
+$("btn-close").addEventListener("click", closeWindow);
 $("btn-play").addEventListener("click", () => send("togglePlayPause"));
 $("btn-prev").addEventListener("click", () => send("previous"));
 $("btn-next").addEventListener("click", () => send("next"));

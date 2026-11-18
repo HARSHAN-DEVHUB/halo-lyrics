@@ -50,6 +50,10 @@ pub async fn find(
             let Some(hit) = pick_best(title, artist, duration_ms, hits) else {
                 continue;
             };
+            if !image_host_allowed(&hit.image_url) {
+                log::warn!("artwork: ignoring a cover from an unexpected address");
+                continue;
+            }
             match download(client, &hit.image_url, MAX_IMAGE_BYTES).await {
                 Ok(bytes) => {
                     log::info!(
@@ -230,6 +234,18 @@ async fn get_json<T: for<'de> Deserialize<'de>>(
     serde_json::from_slice(&bytes).map_err(|e| e.to_string())
 }
 
+/// Cover images are only fetched over HTTPS from Apple's and Deezer's image
+/// servers, whatever the search response says.
+fn image_host_allowed(url: &str) -> bool {
+    let Ok(u) = reqwest::Url::parse(url) else {
+        return false;
+    };
+    u.scheme() == "https"
+        && u.host_str().is_some_and(|h| {
+            [".mzstatic.com", ".dzcdn.net"].iter().any(|d| h.ends_with(d))
+        })
+}
+
 async fn download(client: &reqwest::Client, url: &str, limit: usize) -> Result<Vec<u8>, String> {
     if !url.starts_with("https://") {
         return Err("refusing a non-https URL".into());
@@ -314,5 +330,15 @@ mod tests {
             .unwrap()
             .image_url
             .ends_with("/2000x2000bb.jpg"));
+    }
+
+    #[test]
+    fn only_known_image_hosts() {
+        assert!(image_host_allowed("https://is1-ssl.mzstatic.com/image/thumb/x/2000x2000bb.jpg"));
+        assert!(image_host_allowed("https://e-cdns-images.dzcdn.net/images/cover/x/1000x1000.jpg"));
+        assert!(!image_host_allowed("http://is1-ssl.mzstatic.com/x.jpg"));
+        assert!(!image_host_allowed("https://evil.example/x.jpg"));
+        assert!(!image_host_allowed("https://mzstatic.com.evil.example/x.jpg"));
+        assert!(!image_host_allowed("file:///C:/x.jpg"));
     }
 }

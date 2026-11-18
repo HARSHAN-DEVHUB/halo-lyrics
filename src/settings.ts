@@ -9,14 +9,14 @@ import type { MonitorInfo, Settings } from "./types.ts";
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
 type NumKey = "wordSize" | "blur" | "offsetMs";
-type BoolKey = "mirrorAll" | "autoOpen" | "launchAtLogin" | "hidePlayerBar" | "hdArtwork";
+type BoolKey = "mirrorAll" | "autoOpen" | "launchAtLogin" | "hidePlayerBar" | "hdArtwork" | "closeQuits";
 
 const ranges: Record<NumKey, (v: number) => string> = {
   wordSize: (v) => `${v}px`,
   blur: (v) => `${v}`,
   offsetMs: (v) => `${v > 0 ? "+" : ""}${v} ms`,
 };
-const checks: BoolKey[] = ["mirrorAll", "autoOpen", "launchAtLogin", "hidePlayerBar", "hdArtwork"];
+const checks: BoolKey[] = ["mirrorAll", "autoOpen", "launchAtLogin", "hidePlayerBar", "hdArtwork", "closeQuits"];
 /** Radio groups whose `name` is the settings key. */
 const radios = ["lyricsStyle", "backgroundStyle"] as const;
 
@@ -44,6 +44,7 @@ function render(s: Settings) {
   for (const name of radios) for (const input of radioInputs(name)) input.checked = input.value === s[name];
   $<HTMLSelectElement>("autoCloseMinutes").value = String(s.autoCloseMinutes);
   $<HTMLSelectElement>("monitor").value = s.monitor ?? "";
+  $<HTMLSelectElement>("windowMode").value = s.windowMode;
 }
 
 async function loadMonitors() {
@@ -89,6 +90,8 @@ function wire() {
   }
   const autoClose = $<HTMLSelectElement>("autoCloseMinutes");
   autoClose.addEventListener("change", () => save({ autoCloseMinutes: Number(autoClose.value) }));
+  const windowMode = $<HTMLSelectElement>("windowMode");
+  windowMode.addEventListener("change", () => save({ windowMode: windowMode.value as Settings["windowMode"] }));
   const monitor = $<HTMLSelectElement>("monitor");
   monitor.addEventListener("change", () => save({ monitor: monitor.value || null }));
 

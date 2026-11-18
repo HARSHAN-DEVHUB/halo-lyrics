@@ -8,6 +8,8 @@ use std::path::Path;
 pub const LYRICS_STYLES: &[&str] = &["cinematic", "karaoke", "minimal", "party"];
 /// What sits behind the lyrics. The first entry is the default.
 pub const BACKGROUND_STYLES: &[&str] = &["artwork", "gradient", "dark", "split"];
+/// How the lyrics are shown: covering the screen, or as a normal window.
+pub const WINDOW_MODES: &[&str] = &["fullscreen", "window"];
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
@@ -32,6 +34,16 @@ pub struct Settings {
     pub background_style: String,
     /// Look up a sharper cover online when the player's artwork is small.
     pub hd_artwork: bool,
+    /// One of [`WINDOW_MODES`].
+    pub window_mode: String,
+    /// The window's close button quits the app (otherwise it hides to the tray).
+    pub close_quits: bool,
+}
+
+impl Settings {
+    pub fn windowed(&self) -> bool {
+        self.window_mode == "window"
+    }
 }
 
 impl Default for Settings {
@@ -49,6 +61,8 @@ impl Default for Settings {
             lyrics_style: LYRICS_STYLES[0].into(),
             background_style: BACKGROUND_STYLES[0].into(),
             hd_artwork: true,
+            window_mode: WINDOW_MODES[0].into(),
+            close_quits: true,
         }
     }
 }
@@ -75,6 +89,7 @@ impl Settings {
         }
         one_of(&mut self.lyrics_style, LYRICS_STYLES);
         one_of(&mut self.background_style, BACKGROUND_STYLES);
+        one_of(&mut self.window_mode, WINDOW_MODES);
     }
 
     pub fn load(path: &Path) -> Self {
@@ -164,5 +179,15 @@ mod tests {
             ("cinematic", "artwork")
         );
         assert!(s.merged(&json!({"lyricsStyle": 3})).is_err());
+    }
+
+    #[test]
+    fn window_mode_is_validated() {
+        let s = Settings::default();
+        assert!(!s.windowed() && s.close_quits);
+        let m = s.merged(&json!({"windowMode": "window"})).unwrap();
+        assert!(m.windowed());
+        let m = m.merged(&json!({"windowMode": "kiosk"})).unwrap();
+        assert_eq!(m.window_mode, "fullscreen");
     }
 }

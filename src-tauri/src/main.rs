@@ -124,8 +124,10 @@ async fn update_settings(
             log::warn!("autostart change failed: {e}");
         }
     }
-    if (old.monitor != new.monitor || old.mirror_all != new.mirror_all) && ui::lyrics_visible(&app)
-    {
+    let placement_changed = old.monitor != new.monitor
+        || old.mirror_all != new.mirror_all
+        || old.window_mode != new.window_mode;
+    if placement_changed && ui::lyrics_visible(&app) {
         ui::show_lyrics(&app);
     }
     let _ = app.emit("settings", &new);
@@ -162,6 +164,28 @@ async fn close_lyrics(app: AppHandle) {
     ui::hide_lyrics(&app);
 }
 
+/// The âœ• button (on screen or the window's title bar): quit, or hide to the
+/// tray, depending on the "Closing the window quits" setting.
+#[tauri::command]
+async fn close_window(app: AppHandle) {
+    close_or_quit(&app);
+}
+
+fn close_or_quit(app: &AppHandle) {
+    let quits = app.state::<AppState>().settings.lock().unwrap().close_quits;
+    if quits {
+        quit_app(app);
+    } else {
+        ui::hide_lyrics(app);
+    }
+}
+
+fn quit_app(app: &AppHandle) {
+    log::info!("quitting");
+    app.state::<AppState>().power.set(false);
+    app.exit(0);
+}
+
 #[tauri::command]
 async fn open_settings(app: AppHandle) {
     ui::open_settings(&app);
@@ -171,7 +195,7 @@ async fn open_settings(app: AppHandle) {
 
 fn setup_tray(app: &tauri::App) -> tauri::Result<()> {
     let open = MenuItem::with_id(app, "open", "Open lyrics mode", true, Some(TOGGLE_SHORTCUT))?;
-    let settings = MenuItem::with_id(app, "settings", "Settings…", true, None::<&str>)?;
+    let settings = MenuItem::with_id(app, "settings", "Settingsâ€¦", true, None::<&str>)?;
     let pause = CheckMenuItem::with_id(app, "pause", "Pause detection", true, false, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "Quit Halo Lyrics", true, None::<&str>)?;
     let menu = Menu::with_items(
@@ -203,10 +227,7 @@ fn setup_tray(app: &tauri::App) -> tauri::Result<()> {
                         .store(paused, Ordering::Relaxed);
                     log::info!("detection paused: {paused}");
                 }
-                "quit" => {
-                    app.state::<AppState>().power.set(false);
-                    app.exit(0);
-                }
+                "quit" => quit_app(app),
                 _ => {}
             }
         })
@@ -303,16 +324,18 @@ fn main() {
             lyrics_cache_count,
             lyrics_override_dir,
             close_lyrics,
+            close_window,
             open_settings,
             frontend_ready,
             frontend_log,
         ])
         .on_window_event(|window, event| {
             if let WindowEvent::CloseRequested { api, .. } = event {
-                // Lyrics windows hide instead of closing; the app lives in the tray.
+                // The lyrics window is never destroyed (it is reused); its âœ•
+                // quits or hides to the tray, as the user chose in Settings.
                 if ui::is_lyrics_window(window.label()) {
                     api.prevent_close();
-                    ui::spawn(window.app_handle(), ui::hide_lyrics);
+                    ui::spawn(window.app_handle(), close_or_quit);
                 }
             }
         })
