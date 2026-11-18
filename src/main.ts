@@ -1,6 +1,7 @@
+import "./report.ts";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { tintFromPalette, withAlpha } from "./color.ts";
+import { gradientFromPalette, tintFromPalette, withAlpha } from "./color.ts";
 import { createDemo } from "./demo.ts";
 import { Background } from "./render/background.ts";
 import { IdleScreen } from "./render/idle.ts";
@@ -14,10 +15,13 @@ import type {
   NowPlaying,
   Settings,
 } from "./types.ts";
+import { BACKGROUND_STYLES, LYRICS_STYLES, STYLE_NAMES } from "./types.ts";
 
 const IDLE_AFTER_MS = 10_000;
 const CHROME_HIDE_MS = 3_000;
 const BLUR_STEPS = [0, 14, 28, 44, 60];
+/** The loading screen stays at least this long (from page start), so it never just flashes. */
+const LOADER_MIN_MS = 700;
 
 const isTauri = "__TAURI_INTERNALS__" in window;
 const demoMode = !isTauri || new URLSearchParams(location.search).has("demo");
@@ -47,6 +51,7 @@ const cardTitle = $("card-title");
 const cardArtist = $("card-artist");
 const cardNote = $("card-note");
 const cardDots = [...$("card-dots").children] as HTMLElement[];
+const sideArt = $<HTMLImageElement>("side-art");
 const barThumb = $<HTMLImageElement>("bar-thumb");
 const barTitle = $("bar-title");
 const barArtist = $("bar-artist");
@@ -68,6 +73,8 @@ let settings: Settings = {
   autoCloseMinutes: 0,
   launchAtLogin: false,
   hidePlayerBar: false,
+  lyricsStyle: "cinematic",
+  backgroundStyle: "artwork",
 };
 let np: NowPlaying | null = null;
 let artCache: { key: string; art: Artwork } | null = null;
@@ -130,9 +137,13 @@ function onNowPlaying(next: NowPlaying | null) {
   const tint = tintFromPalette(art?.palette);
   app.style.setProperty("--tint", tint);
   app.style.setProperty("--tint-glow", withAlpha(tint, 0.4));
+  app.style.setProperty("--tint-soft", withAlpha(tint, 0.1));
+  gradientFromPalette(art?.palette).forEach((c, i) => app.style.setProperty(`--g${i}`, c));
+  app.classList.toggle("no-art", !art);
 
   setImg(barThumb, art?.dataUrl);
   setImg(cardArt, art?.dataUrl);
+  setImg(sideArt, art?.dataUrl);
   setText(barTitle, next.title);
   setText(barArtist, next.artist);
   setText(cardTitle, next.title || "Unknown title");
@@ -185,7 +196,8 @@ function refreshMode() {
     renderedLyricsKey = key;
     stage.clear();
     card.classList.remove("instrumental");
-    setText(cardNote, "");
+    card.classList.toggle("pending", !ly);
+    setText(cardNote, ly ? "" : "Finding lyrics");
     if (ly?.kind === "synced") stage.setLines(ly.lines, current.durationMs);
     else if (ly?.kind === "plain") plain.set(ly.text);
     else if (ly?.kind === "instrumental") {
@@ -206,7 +218,9 @@ let rafId = 0;
 let lastSecond = -1;
 
 function needsFrames(): boolean {
-  return clock.isPlaying && mode !== "idle" && document.visibilityState === "visible";
+  if (document.visibilityState !== "visible" || mode === "idle") return false;
+  // The "Finding lyrics" dots animate even while paused.
+  return clock.isPlaying || (mode === "card" && card.classList.contains("pending"));
 }
 
 function frame() {
@@ -216,6 +230,7 @@ function frame() {
   else if (mode === "plain" && np) plain.update(t, np.durationMs);
   else if (mode === "card" && np && card.classList.contains("instrumental"))
     updateCardDots(cardDots, np.durationMs ? t / np.durationMs : 0, t);
+  else if (mode === "card" && card.classList.contains("pending")) updateCardDots(cardDots, 0, performance.now());
 
   if (np && chromeVisible && !settings.hidePlayerBar && mode !== "idle") {
     const d = np.durationMs;
@@ -257,6 +272,8 @@ function applySettings(s: Settings) {
   app.style.setProperty("--sung", `${Math.round(active * 0.34)}px`);
   app.style.setProperty("--blur", `${s.blur}px`);
   app.classList.toggle("no-bar", s.hidePlayerBar);
+  app.dataset.layout = s.lyricsStyle;
+  app.dataset.bg = s.backgroundStyle;
   plain.measure();
   kick();
 }
@@ -334,8 +351,26 @@ window.addEventListener("keydown", (e) => {
       toast(hidePlayerBar ? "Player bar hidden" : "Player bar shown");
       break;
     }
+    case "s":
+    case "S": {
+      const lyricsStyle = nextOf(LYRICS_STYLES, settings.lyricsStyle);
+      updateSettings({ lyricsStyle });
+      toast(`Lyrics style · ${STYLE_NAMES[lyricsStyle]}`);
+      break;
+    }
+    case "g":
+    case "G": {
+      const backgroundStyle = nextOf(BACKGROUND_STYLES, settings.backgroundStyle);
+      updateSettings({ backgroundStyle });
+      toast(`Background · ${STYLE_NAMES[backgroundStyle]}`);
+      break;
+    }
   }
 });
+
+function nextOf<T>(list: readonly T[], current: T): T {
+  return list[(list.indexOf(current) + 1) % list.length];
+}
 
 $("btn-play").addEventListener("click", () => send("togglePlayPause"));
 $("btn-prev").addEventListener("click", () => send("previous"));
@@ -343,11 +378,26 @@ $("btn-next").addEventListener("click", () => send("next"));
 
 // ------------------------------------------------------------------ boot
 
+/** Fades out the loading screen once the first real screen is ready. */
+function hideLoader() {
+  const loader = document.getElementById("loader");
+  if (!loader) return;
+  window.setTimeout(() => {
+    loader.classList.add("done");
+    window.setTimeout(() => loader.remove(), 700);
+  }, Math.max(0, LOADER_MIN_MS - performance.now()));
+}
+
 async function boot() {
   // Everything above ran without throwing: tell the backend's load watchdog.
   if (!demo) invoke("frontend_ready").catch(() => {});
   applySettings(settings);
   if (demo) {
+    // `?demo&style=karaoke&bg=split` previews a style (handy for screenshots).
+    const q = new URLSearchParams(location.search);
+    const style = LYRICS_STYLES.find((s) => s === q.get("style"));
+    const bg = BACKGROUND_STYLES.find((s) => s === q.get("bg"));
+    applySettings({ ...settings, ...(style && { lyricsStyle: style }), ...(bg && { backgroundStyle: bg }) });
     onNowPlaying(demo.nowPlaying());
     onLyrics(demo.lyrics);
     return;
@@ -366,4 +416,5 @@ async function boot() {
   }
 }
 
-boot();
+// The loading screen goes away whatever happens, so it can never get stuck.
+boot().finally(hideLoader);

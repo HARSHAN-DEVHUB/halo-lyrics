@@ -16,7 +16,7 @@ use media::{MediaCommand, NowPlayingSource};
 use serde::Serialize;
 use settings::Settings;
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Arc, Mutex};
 use tauri::menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
@@ -65,6 +65,18 @@ fn frontend_ready(window: tauri::WebviewWindow) {
     if window.label() == ui::MAIN {
         safety::mark_frontend_ready();
     }
+}
+
+/// Uncaught errors from the web pages, so they end up in the log file too.
+#[tauri::command]
+fn frontend_log(window: tauri::WebviewWindow, message: String) {
+    // A page stuck in an error loop must not flood the log.
+    static REPORTED: AtomicU32 = AtomicU32::new(0);
+    if REPORTED.fetch_add(1, Ordering::Relaxed) >= 50 {
+        return;
+    }
+    let message: String = message.chars().take(2000).collect();
+    log::error!("[{} page] {message}", window.label());
 }
 
 #[tauri::command]
@@ -190,7 +202,24 @@ fn setup_tray(app: &tauri::App) -> tauri::Result<()> {
     Ok(())
 }
 
+/// Writes panics to the log file before the process goes down. Release builds
+/// use `panic = "abort"`, so without this a crash would leave no trace.
+fn install_panic_logger() {
+    let default_hook = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        let thread = std::thread::current();
+        let name = thread.name().unwrap_or("unnamed");
+        #[cfg(debug_assertions)]
+        log::error!("crash on thread '{name}': {info}\n{}", std::backtrace::Backtrace::force_capture());
+        #[cfg(not(debug_assertions))]
+        log::error!("crash on thread '{name}': {info}");
+        log::logger().flush();
+        default_hook(info);
+    }));
+}
+
 fn main() {
+    install_panic_logger();
     let launched_at_login = std::env::args().any(|a| a == AUTOSTART_FLAG);
 
     let log_plugin = tauri_plugin_log::Builder::new()
@@ -209,6 +238,14 @@ fn main() {
     let log_plugin = log_plugin.target(tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::Stdout));
 
     tauri::Builder::default()
+        // Must be the first plugin: a second launch hands over to the running
+        // copy and exits before anything else (tray, shortcut, overlay) starts.
+        .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
+            log::info!("Halo Lyrics is already running; using the existing copy");
+            if !args.iter().any(|a| a == AUTOSTART_FLAG) {
+                ui::spawn(app, ui::show_lyrics);
+            }
+        }))
         .plugin(log_plugin.build())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_autostart::init(
@@ -236,6 +273,7 @@ fn main() {
             close_lyrics,
             open_settings,
             frontend_ready,
+            frontend_log,
         ])
         .on_window_event(|window, event| {
             if let WindowEvent::CloseRequested { api, .. } = event {

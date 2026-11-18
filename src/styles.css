@@ -51,6 +51,14 @@ body {
 .app {
   position: fixed;
   inset: 0;
+  /* Gradient background colours; set from the artwork palette in main.ts. */
+  --g0: #16151c;
+  --g1: #2b2636;
+  --g2: #232a33;
+  --g3: #33292e;
+  --tint-soft: rgba(244, 241, 236, 0.1);
+  /* Artwork size for the "Art on the side" background. */
+  --side: min(44vh, 30vw);
 }
 
 /* ---------------------------------------------------------------- 1. artwork */
@@ -373,8 +381,18 @@ body {
   height: 30px;
   display: none;
 }
-.card.instrumental .card-dots {
+.card.instrumental .card-dots,
+.card.pending .card-dots {
   display: flex;
+}
+/* Waiting for lyrics: the note gently pulses. */
+.card.pending .card-note {
+  animation: pending-pulse 1.8s ease-in-out infinite;
+}
+@keyframes pending-pulse {
+  50% {
+    opacity: 0.55;
+  }
 }
 
 /* ---------------------------------------------------------------- idle */
@@ -593,6 +611,244 @@ body {
   transform: translate(-50%, 0);
 }
 
+/* ================================================================ background styles */
+/* Selected in Settings → Style; main.ts sets data-bg on .app. */
+
+/* --- Colour gradient: soft blobs in the artwork's colours, slowly drifting.
+   Each blob is a radial gradient of currentColor, so a colour change on track
+   change is a cheap `color` transition (no blur filter needed). */
+.bg-gradient {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: var(--g0);
+  opacity: 0;
+  transition:
+    opacity 1.2s ease,
+    background-color 1.6s ease;
+}
+.bg-gradient i {
+  position: absolute;
+  width: 95vmax;
+  height: 95vmax;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, currentColor 0%, transparent 100%);
+  opacity: 0.85;
+  transition: color 1.6s ease;
+  animation: blob 30s ease-in-out infinite alternate;
+  will-change: transform;
+}
+.bg-gradient i:nth-child(1) {
+  left: -35vmax;
+  top: -40vmax;
+  color: var(--g1);
+}
+.bg-gradient i:nth-child(2) {
+  right: -40vmax;
+  top: -20vmax;
+  color: var(--g2);
+  animation-duration: 36s;
+  animation-delay: -12s;
+}
+.bg-gradient i:nth-child(3) {
+  left: -10vmax;
+  bottom: -55vmax;
+  color: var(--g3);
+  animation-duration: 42s;
+  animation-delay: -24s;
+}
+@keyframes blob {
+  from {
+    transform: translate(0, 0) scale(1);
+  }
+  to {
+    transform: translate(14vmax, 9vmax) scale(1.2);
+  }
+}
+.app[data-bg="gradient"] .bg-gradient {
+  opacity: 1;
+}
+
+/* --- Plain dark: no artwork, just a faint glow in the artwork's tint. */
+.app[data-bg="dark"] .bg {
+  background:
+    radial-gradient(ellipse 70% 55% at 50% 45%, var(--tint-soft), transparent 70%),
+    var(--base);
+}
+
+.app[data-bg="gradient"] .bg-layer,
+.app[data-bg="dark"] .bg-layer {
+  visibility: hidden;
+}
+
+/* --- Art on the side: sharp artwork on the left, lyrics on the right, over a
+   darker, blurrier copy of the artwork. */
+.side-art {
+  position: absolute;
+  left: 7vw;
+  top: 50%;
+  width: var(--side);
+  height: var(--side);
+  transform: translateY(-55%);
+  border-radius: 24px;
+  object-fit: cover;
+  box-shadow:
+    0 30px 80px rgba(0, 0, 0, 0.55),
+    0 8px 24px rgba(0, 0, 0, 0.35);
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 600ms ease,
+    visibility 0s linear 600ms;
+}
+.app[data-bg="split"][data-mode="synced"] .side-art:not(.empty),
+.app[data-bg="split"][data-mode="plain"] .side-art:not(.empty) {
+  opacity: 1;
+  visibility: visible;
+  transition:
+    opacity 600ms ease,
+    visibility 0s;
+}
+.app[data-bg="split"] .bg-drift img {
+  filter: blur(calc(var(--blur) + 30px)) saturate(1.1) brightness(0.5);
+}
+.app[data-bg="split"]:not(.no-art) .stage {
+  padding-left: calc(7vw + var(--side) + 5vw);
+  padding-right: 5vw;
+}
+.app[data-bg="split"]:not(.no-art) .plain-inner {
+  left: calc(50% + (var(--side) + 5vw) / 2);
+  width: min(900px, calc(88vw - var(--side) - 5vw));
+}
+
+/* ================================================================ lyrics styles */
+/* Selected in Settings → Style; main.ts sets data-layout on .app. Cinematic is
+   the base styling above. The others keep every word the same size, so only
+   colour and opacity change as the song moves on. */
+
+/* Lines a style doesn't show: out of the flow and invisible, but still in the
+   DOM so the move/fade animations in render/lyrics.ts keep working. */
+.app[data-layout="karaoke"] .line.prev,
+.app[data-layout="minimal"] .line.prev,
+.app[data-layout="minimal"] .line.next,
+.app[data-layout="party"] .line.prev,
+.app[data-layout="party"] .line.next {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+  /* Vanish quickly, so the jump out of the flow isn't seen. */
+  transition: opacity 120ms linear;
+}
+
+/* A word leaving the active state must not borrow Cinematic's serif. */
+.app:not([data-layout="cinematic"]) .line .w.was {
+  font-family: inherit;
+  font-style: inherit;
+  font-weight: inherit;
+  letter-spacing: inherit;
+}
+
+/* --- Karaoke: current + next line low on the screen; sung words fill in. */
+.app[data-layout="karaoke"] .stage {
+  justify-content: flex-end;
+  gap: 16px;
+  padding-bottom: 190px;
+}
+.app[data-layout="karaoke"].no-bar .stage,
+.app[data-layout="karaoke"].chrome-off .stage {
+  padding-bottom: 120px;
+}
+.app[data-layout="karaoke"] .line.current {
+  font: 700 calc(var(--active) * 0.46) / 1.12 var(--font-sans);
+  column-gap: 0.28em;
+}
+.app[data-layout="karaoke"] .line.current .w,
+.app[data-layout="karaoke"] .line.current .w.active {
+  font-size: calc(var(--active) * 0.46);
+}
+.app[data-layout="karaoke"] .line.current .w {
+  opacity: 0.55;
+}
+.app[data-layout="karaoke"] .line.current .w.sung {
+  opacity: 1;
+  color: var(--tint);
+}
+.app[data-layout="karaoke"] .line.current .w.active {
+  font-family: inherit;
+  font-style: normal;
+  font-weight: inherit;
+  letter-spacing: normal;
+  color: var(--tint);
+  opacity: 1;
+  text-shadow: 0 0 40px var(--tint-glow);
+}
+.app[data-layout="karaoke"] .line.next {
+  font: 600 calc(var(--active) * 0.28) / 1.2 var(--font-sans);
+}
+.app[data-layout="karaoke"] .line.next .w {
+  font-size: calc(var(--active) * 0.28);
+}
+
+/* --- Minimal: one calm line in the middle, nothing else. */
+.app[data-layout="minimal"] .line.current {
+  max-width: 1000px;
+  font: 500 calc(var(--active) * 0.4) / 1.18 var(--font-sans);
+  column-gap: 0.26em;
+}
+.app[data-layout="minimal"] .line.current .w,
+.app[data-layout="minimal"] .line.current .w.active {
+  font-size: calc(var(--active) * 0.4);
+}
+.app[data-layout="minimal"] .line.current .w {
+  opacity: 0.5;
+}
+.app[data-layout="minimal"] .line.current .w.sung {
+  opacity: 0.92;
+}
+.app[data-layout="minimal"] .line.current .w.active {
+  font-family: inherit;
+  font-style: normal;
+  font-weight: inherit;
+  letter-spacing: normal;
+  color: var(--text);
+  opacity: 1;
+  text-shadow: 0 0 30px rgba(244, 241, 236, 0.25);
+}
+
+/* --- Party: one huge, bold line you can read from across the room. */
+.app[data-layout="party"] .stage {
+  padding-left: 4vw;
+  padding-right: 4vw;
+}
+.app[data-layout="party"] .line {
+  max-width: 92vw;
+}
+.app[data-layout="party"] .line.current {
+  font: 800 calc(var(--active) * 0.72) / 1 var(--font-sans);
+  text-transform: uppercase;
+  letter-spacing: -0.02em;
+  column-gap: 0.22em;
+}
+.app[data-layout="party"] .line.current .w,
+.app[data-layout="party"] .line.current .w.active {
+  font-size: calc(var(--active) * 0.72);
+}
+.app[data-layout="party"] .line.current .w {
+  opacity: 0.5;
+}
+.app[data-layout="party"] .line.current .w.sung {
+  opacity: 1;
+}
+.app[data-layout="party"] .line.current .w.active {
+  font-family: inherit;
+  font-style: normal;
+  font-weight: inherit;
+  letter-spacing: inherit;
+  color: var(--tint);
+  opacity: 1;
+  text-shadow: 0 0 80px var(--tint-glow);
+}
+
 /* ---------------------------------------------------------------- small screens */
 @media (max-width: 900px) {
   .bar-meta {
@@ -609,7 +865,9 @@ body {
 /* ---------------------------------------------------------------- reduced motion */
 /* No drift, no size transitions, no slides: only opacity crossfades. */
 @media (prefers-reduced-motion: reduce) {
-  .bg-drift {
+  .bg-drift,
+  .bg-gradient i,
+  .card.pending .card-note {
     animation: none;
   }
   .line,

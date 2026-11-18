@@ -139,6 +139,210 @@ select option {
   outline-offset: 2px;
 }
 
+/* ---------------------------------------------------------------- style pickers */
+.sub {
+  margin: 10px 0 8px;
+  font-size: 12px;
+  color: var(--dim);
+}
+.styles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0 0 12px;
+}
+.style {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  cursor: pointer;
+}
+/* The radio stays focusable and readable by screen readers, just not drawn. */
+.style input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
+}
+.style-name {
+  margin-top: 6px;
+  font-weight: 500;
+  color: var(--dim);
+  transition: color 150ms ease;
+}
+.style-desc {
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--dim);
+}
+.style:hover .style-name,
+.style input:checked ~ .style-name {
+  color: var(--text);
+}
+.style input:checked ~ .style-name::after {
+  content: " ✓";
+}
+.style input:focus-visible + .pv {
+  outline: 2px solid rgba(244, 241, 236, 0.6);
+  outline-offset: 3px;
+}
+
+/* Mini previews: plain shapes standing in for lines of lyrics. */
+.pv {
+  --pv-accent: #f2b8a2;
+  --pv-line: rgba(244, 241, 236, 0.85);
+  --pv-dim: rgba(244, 241, 236, 0.32);
+  aspect-ratio: 16 / 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 10px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background:
+    radial-gradient(circle at 28% 30%, rgba(192, 84, 106, 0.55), transparent 60%),
+    radial-gradient(circle at 75% 72%, rgba(74, 111, 192, 0.5), transparent 60%),
+    #1a1620;
+  transition:
+    border-color 150ms ease,
+    box-shadow 150ms ease;
+}
+.style:hover .pv {
+  border-color: rgba(255, 255, 255, 0.28);
+}
+.style input:checked + .pv {
+  border-color: var(--text);
+  box-shadow: 0 0 0 1px var(--text);
+}
+.pv i,
+.pv b,
+.pv s,
+.pv u,
+.pv em {
+  display: block;
+  text-decoration: none;
+  font-style: normal;
+}
+/* dim line */
+.pv i {
+  width: 44%;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--pv-dim);
+}
+/* main line made of segments */
+.pv b {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 70%;
+}
+.pv b:empty {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--pv-line);
+}
+.pv s {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--pv-line);
+}
+.pv u {
+  flex: 1.3;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--pv-accent);
+  box-shadow: 0 0 10px rgba(242, 184, 162, 0.6);
+}
+
+.pv-cinematic u {
+  height: 13px;
+  border-radius: 7px;
+  flex: 1.6;
+}
+
+.pv-karaoke {
+  justify-content: flex-end;
+  align-items: center;
+  padding-bottom: 14px;
+}
+.pv-karaoke b {
+  width: 76%;
+}
+.pv-karaoke b s {
+  background: var(--pv-dim);
+}
+.pv-karaoke i {
+  width: 52%;
+  height: 4px;
+}
+
+.pv-minimal b:empty {
+  width: 52%;
+  height: 4px;
+}
+
+.pv-party b {
+  width: 88%;
+  gap: 5px;
+}
+.pv-party s,
+.pv-party u {
+  height: 15px;
+  border-radius: 4px;
+}
+
+/* Background previews share one neutral set of lines. */
+.pv-gradient {
+  background:
+    radial-gradient(circle at 15% 15%, #5a2f6a 0%, transparent 60%),
+    radial-gradient(circle at 90% 30%, #23506a 0%, transparent 60%),
+    radial-gradient(circle at 45% 110%, #6a3a32 0%, transparent 65%),
+    #15131b;
+}
+.pv-dark {
+  background:
+    radial-gradient(ellipse 70% 55% at 50% 45%, rgba(242, 184, 162, 0.14), transparent 70%),
+    #0c0c10;
+}
+.pv-split {
+  flex-direction: row;
+  justify-content: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  background:
+    radial-gradient(circle at 28% 30%, rgba(192, 84, 106, 0.3), transparent 60%),
+    radial-gradient(circle at 75% 72%, rgba(74, 111, 192, 0.28), transparent 60%),
+    #120f16;
+}
+.pv-split em {
+  flex: none;
+  height: 70%;
+  aspect-ratio: 1;
+  border-radius: 6px;
+  background: linear-gradient(135deg, #c0546a, #4a6fc0);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+.pv-split span {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+}
+.pv-split span i {
+  width: 60%;
+}
+.pv-split span b:empty {
+  width: 90%;
+}
+
 .note {
   margin: 4px 0 10px;
   font-size: 12px;

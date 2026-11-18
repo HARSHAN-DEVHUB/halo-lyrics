@@ -4,18 +4,125 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Halo Lyrics</title>
+    <!-- Loading screen styles are inline so it shows before anything else loads. -->
+    <style>
+      #loader {
+        position: fixed;
+        inset: 0;
+        z-index: 100;
+        display: grid;
+        place-items: center;
+        background: #09090c;
+        color: #f4f1ec;
+        transition: opacity 0.6s ease, visibility 0s linear 0.6s;
+      }
+      #loader.done {
+        opacity: 0;
+        visibility: hidden;
+      }
+      .ld {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 20px;
+      }
+      .ld svg {
+        width: 72px;
+        height: 72px;
+        overflow: visible;
+        filter: drop-shadow(0 0 14px rgba(244, 241, 236, 0.28));
+      }
+      .ld circle {
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2.5;
+        stroke-linecap: round;
+      }
+      .ld .ld-track {
+        opacity: 0.12;
+      }
+      .ld .ld-arc {
+        transform-origin: 12px 12px;
+        animation:
+          ld-spin 1.6s linear infinite,
+          ld-dash 1.6s ease-in-out infinite;
+      }
+      .ld-name {
+        font: italic 400 34px/1 "Instrument Serif", Georgia, serif;
+        letter-spacing: -0.01em;
+        opacity: 0;
+        animation: ld-in 0.8s ease 0.15s forwards;
+      }
+      .ld-sub {
+        font: 11px/1 "Geist Mono", ui-monospace, Consolas, monospace;
+        letter-spacing: 0.24em;
+        text-transform: uppercase;
+        color: rgba(244, 241, 236, 0.6);
+        opacity: 0;
+        animation: ld-in 0.8s ease 0.35s forwards;
+      }
+      @keyframes ld-spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      @keyframes ld-dash {
+        0% {
+          stroke-dasharray: 2 98;
+          stroke-dashoffset: 0;
+        }
+        50% {
+          stroke-dasharray: 62 38;
+          stroke-dashoffset: -18;
+        }
+        100% {
+          stroke-dasharray: 2 98;
+          stroke-dashoffset: -98;
+        }
+      }
+      @keyframes ld-in {
+        from {
+          opacity: 0;
+          transform: translateY(6px);
+        }
+        to {
+          opacity: 1;
+          transform: none;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .ld .ld-arc {
+          animation: none;
+        }
+      }
+    </style>
     <link rel="stylesheet" href="/src/styles.css" />
   </head>
   <body>
-    <div id="app" class="app" data-mode="loading">
-      <!-- 1. artwork background (layers are added by render/background.ts) -->
+    <div id="loader" role="status" aria-label="Loading Halo Lyrics">
+      <div class="ld">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <circle class="ld-track" cx="12" cy="12" r="8.25" />
+          <circle class="ld-arc" cx="12" cy="12" r="8.25" pathLength="100" />
+        </svg>
+        <div class="ld-name">Halo Lyrics</div>
+        <div class="ld-sub">Getting ready</div>
+      </div>
+    </div>
+
+    <div id="app" class="app" data-mode="loading" data-layout="cinematic" data-bg="artwork">
+      <!-- 1. background: artwork layers are added by render/background.ts;
+              the gradient is used by the "Colour gradient" background style -->
       <div class="bg" id="bg" aria-hidden="true">
+        <div class="bg-gradient"><i></i><i></i><i></i></div>
         <div class="bg-dim"></div>
       </div>
       <!-- 2. vignette -->
       <div class="vignette" aria-hidden="true"></div>
       <!-- 3. bottom shade, only while the player bar is visible -->
       <div class="shade" aria-hidden="true"></div>
+      <!-- sharp artwork for the "Art on the side" background style -->
+      <img class="side-art empty" id="side-art" alt="" />
 
       <!-- 4. lyrics stage -->
       <main class="stage" id="stage" aria-live="off"></main>

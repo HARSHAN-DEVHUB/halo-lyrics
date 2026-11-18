@@ -18,6 +18,8 @@ Built with [Tauri 2](https://tauri.app) (Rust backend) and plain TypeScript + Vi
 - **Your own lyrics win.** Drop `.lrc` or `.txt` files into a folder to override the downloaded lyrics.
 - **Smart title cleanup.** Handles YouTube titles like `Artist - Song (Official Video)`, VEVO and "- Topic" channels, `feat.` credits, and "Remastered 2011".
 - **Ambient look.** The album art is blurred and slowly drifts, and the text takes a tint from the artwork's colours. A clock appears when nothing is playing.
+- **Styles you can pick.** Four lyrics styles (Cinematic, Karaoke, Minimal, Party) and four backgrounds (Album art, Colour gradient, Plain dark, Art on the side), chosen separately in Settings or cycled with `S` and `G`.
+- **One copy at a time.** Starting the app again just brings up the copy that's already running.
 - **Multi-monitor.** Pick a display, or mirror the lyrics on every display.
 - **Auto-open and auto-close.** Opens when music starts and closes after music stops (both optional).
 - **Keeps the screen awake** while lyrics are showing and music is playing.
@@ -47,6 +49,8 @@ The app keeps running in the **system tray** (the `^` arrow next to the clock on
 | `[` / `]` | Shift the lyrics timing by −/+ 0.1 s |
 | `B` | Cycle the background blur |
 | `H` | Hide or show the player bar |
+| `S` | Next lyrics style |
+| `G` | Next background style |
 
 ### What you'll see
 
@@ -61,10 +65,31 @@ The app keeps running in the **system tray** (the `^` arrow next to the clock on
 
 Open them from the tray menu → **Settings…**
 
+- **Style:** lyrics style and background style, each picked from preview cards (see below)
 - **Look:** word size, background blur, lyrics offset, hide the player bar
 - **Display:** which monitor to use, mirror on all displays
 - **Behaviour:** auto-open when music starts, auto-close after music stops, launch at login
 - **Lyrics:** clear the lyrics cache
+
+### Styles
+
+The lyrics style and the background are separate settings, so any lyrics style works with any background.
+
+| Lyrics style | What it looks like |
+|---|---|
+| **Cinematic** (default) | Previous, current and next line; the word being sung grows into a large italic serif |
+| **Karaoke** | Current and next line low on the screen; sung words fill in with the artwork's colour |
+| **Minimal** | Only the current line, calm and medium-sized |
+| **Party** | One huge, bold, uppercase line, readable from across a room |
+
+| Background | What it looks like |
+|---|---|
+| **Album art** (default) | The cover, blurred and slowly drifting |
+| **Colour gradient** | Soft, drifting blobs in the cover's colours |
+| **Plain dark** | No picture, just a faint glow in the cover's colour |
+| **Art on the side** | The sharp cover on the left, lyrics on the right |
+
+The **Word size** slider scales every lyrics style.
 
 ### Using your own lyrics files
 
@@ -177,6 +202,7 @@ The logic lives in [`src-tauri/src/safety.rs`](src-tauri/src/safety.rs).
 | No song detected | Check that the player shows up in the Windows volume / media flyout. Some players don't publish media info. Make sure **Pause detection** in the tray menu is unchecked. |
 | Song detected but "no lyrics" | The song may not be on LRCLIB, or the title is unusual (common with YouTube). Add your own `.lrc` file (see above). |
 | Wrong lyrics | Clear the lyrics cache in Settings, or add an override `.lrc` file. |
+| The app closed by itself | Crashes and page errors are written to the log file (see below). Search it for `crash` or `page]`. |
 | `Ctrl+Shift+L` does nothing | Another app has taken that shortcut. Use the tray icon instead. |
 | Build fails on Windows with linker errors | Install the C++ Build Tools ("Desktop development with C++"). |
 
@@ -216,7 +242,8 @@ src/
   main.ts                     Lyrics window: state, frame loop, keyboard
   settings.ts                 Settings window
   sync.ts                     Playback clock + line/word timing (unit-tested)
-  color.ts                    OKLCH tint from the artwork palette
+  color.ts                    OKLCH tint and gradient colours from the artwork palette
+  report.ts                   Sends page errors to the backend log
   demo.ts                     Fake song for browser/demo mode
   render/                     Background, lyrics stage, idle clock
 src-tauri/
@@ -246,4 +273,4 @@ The only network requests are to `lrclib.net`, sending the song title, artist, a
 
 ## License
 
-No license has been chosen yet. Add a `LICENSE` file (MIT is a common choice) before publishing if you want others to be able to use the code.
+[MIT](LICENSE) © 2026 HARSHAN-DEVHUB

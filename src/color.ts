@@ -77,6 +77,25 @@ export function tintFromPalette(palette: string[] | undefined): string {
   return oklchToHex(0.85, Math.min(best[1], 0.15), best[2]);
 }
 
+const GRADIENT_FALLBACK = ["#16151C", "#2B2636", "#232A33", "#33292E"];
+
+/**
+ * Colours for the gradient background: a very dark base plus three deep blob
+ * colours, taken from the palette (most vivid first) and darkened in OKLCH so
+ * white text stays readable on top. Missing colours fall back to muted greys.
+ */
+export function gradientFromPalette(palette: string[] | undefined): [string, string, string, string] {
+  const lch: [number, number, number][] = [];
+  for (const hex of palette ?? []) {
+    const rgb = hexToRgb(hex);
+    if (rgb) lch.push(rgbToOklch(rgb));
+  }
+  if (lch.length === 0) return [...GRADIENT_FALLBACK] as [string, string, string, string];
+  const deep = ([, c, h]: [number, number, number], l: number) => oklchToHex(l, Math.min(c, 0.14), h);
+  const pick = (i: number) => lch[i % lch.length];
+  return [deep(pick(0), 0.17), deep(pick(0), 0.42), deep(pick(1), 0.36), deep(pick(2), 0.32)];
+}
+
 export function withAlpha(hex: string, alpha: number): string {
   const rgb = hexToRgb(hex) ?? [244, 241, 236];
   return `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${alpha})`;

@@ -44,6 +44,25 @@ export type Settings = {
   autoCloseMinutes: number;
   launchAtLogin: boolean;
   hidePlayerBar: boolean;
+  lyricsStyle: LyricsStyle;
+  backgroundStyle: BackgroundStyle;
+};
+
+// Keep in step with LYRICS_STYLES / BACKGROUND_STYLES in src-tauri/src/settings.rs.
+export const LYRICS_STYLES = ["cinematic", "karaoke", "minimal", "party"] as const;
+export const BACKGROUND_STYLES = ["artwork", "gradient", "dark", "split"] as const;
+export type LyricsStyle = (typeof LYRICS_STYLES)[number];
+export type BackgroundStyle = (typeof BACKGROUND_STYLES)[number];
+
+export const STYLE_NAMES: Record<LyricsStyle | BackgroundStyle, string> = {
+  cinematic: "Cinematic",
+  karaoke: "Karaoke",
+  minimal: "Minimal",
+  party: "Party",
+  artwork: "Album art",
+  gradient: "Colour gradient",
+  dark: "Plain dark",
+  split: "Art on the side",
 };
 
 export type MonitorInfo = {

@@ -4,6 +4,11 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::path::Path;
 
+/// How the lyrics are laid out. The first entry is the default.
+pub const LYRICS_STYLES: &[&str] = &["cinematic", "karaoke", "minimal", "party"];
+/// What sits behind the lyrics. The first entry is the default.
+pub const BACKGROUND_STYLES: &[&str] = &["artwork", "gradient", "dark", "split"];
+
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
 pub struct Settings {
@@ -21,6 +26,10 @@ pub struct Settings {
     pub auto_close_minutes: u32,
     pub launch_at_login: bool,
     pub hide_player_bar: bool,
+    /// One of [`LYRICS_STYLES`].
+    pub lyrics_style: String,
+    /// One of [`BACKGROUND_STYLES`].
+    pub background_style: String,
 }
 
 impl Default for Settings {
@@ -35,7 +44,16 @@ impl Default for Settings {
             auto_close_minutes: 0,
             launch_at_login: false,
             hide_player_bar: false,
+            lyrics_style: LYRICS_STYLES[0].into(),
+            background_style: BACKGROUND_STYLES[0].into(),
         }
+    }
+}
+
+/// Keeps `value` if it is one of `allowed`, otherwise resets it to the default.
+fn one_of(value: &mut String, allowed: &[&str]) {
+    if !allowed.contains(&value.as_str()) {
+        *value = allowed[0].into();
     }
 }
 
@@ -48,6 +66,8 @@ impl Settings {
         if self.monitor.as_deref().is_some_and(|m| m.trim().is_empty() || m.len() > 256) {
             self.monitor = None;
         }
+        one_of(&mut self.lyrics_style, LYRICS_STYLES);
+        one_of(&mut self.background_style, BACKGROUND_STYLES);
     }
 
     pub fn load(path: &Path) -> Self {
@@ -112,5 +132,17 @@ mod tests {
         let s: Settings = serde_json::from_str(r#"{"blur": 30}"#).unwrap();
         assert_eq!(s.blur, 30);
         assert_eq!(s.word_size, 136);
+        assert_eq!(s.lyrics_style, "cinematic");
+        assert_eq!(s.background_style, "artwork");
+    }
+
+    #[test]
+    fn styles_are_validated() {
+        let s = Settings::default();
+        let m = s.merged(&json!({"lyricsStyle": "karaoke", "backgroundStyle": "split"})).unwrap();
+        assert_eq!((m.lyrics_style.as_str(), m.background_style.as_str()), ("karaoke", "split"));
+        let m = m.merged(&json!({"lyricsStyle": "disco", "backgroundStyle": ""})).unwrap();
+        assert_eq!((m.lyrics_style.as_str(), m.background_style.as_str()), ("cinematic", "artwork"));
+        assert!(s.merged(&json!({"lyricsStyle": 3})).is_err());
     }
 }

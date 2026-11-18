@@ -17,6 +17,65 @@
       </header>
 
       <section class="group">
+        <h2 class="mono">Style</h2>
+        <p class="sub">Lyrics <span class="mono dim">· S</span></p>
+        <div class="styles" role="radiogroup" aria-label="Lyrics style">
+          <label class="style">
+            <input type="radio" name="lyricsStyle" value="cinematic" />
+            <span class="pv pv-cinematic" aria-hidden="true"><i></i><b><s></s><u></u><s></s></b><i></i></span>
+            <span class="style-name">Cinematic</span>
+            <span class="style-desc">Big italic word, lines glide past</span>
+          </label>
+          <label class="style">
+            <input type="radio" name="lyricsStyle" value="karaoke" />
+            <span class="pv pv-karaoke" aria-hidden="true"><b><u></u><s></s></b><i></i></span>
+            <span class="style-name">Karaoke</span>
+            <span class="style-desc">Two lines low down, words fill in</span>
+          </label>
+          <label class="style">
+            <input type="radio" name="lyricsStyle" value="minimal" />
+            <span class="pv pv-minimal" aria-hidden="true"><b></b></span>
+            <span class="style-name">Minimal</span>
+            <span class="style-desc">One calm line, nothing else</span>
+          </label>
+          <label class="style">
+            <input type="radio" name="lyricsStyle" value="party" />
+            <span class="pv pv-party" aria-hidden="true"><b><u></u><s></s></b><b><s></s></b></span>
+            <span class="style-name">Party</span>
+            <span class="style-desc">Huge bold text, readable from afar</span>
+          </label>
+        </div>
+
+        <p class="sub">Background <span class="mono dim">· G</span></p>
+        <div class="styles" role="radiogroup" aria-label="Background style">
+          <label class="style">
+            <input type="radio" name="backgroundStyle" value="artwork" />
+            <span class="pv pv-artwork" aria-hidden="true"><i></i><b></b><i></i></span>
+            <span class="style-name">Album art</span>
+            <span class="style-desc">Blurred, slowly drifting cover</span>
+          </label>
+          <label class="style">
+            <input type="radio" name="backgroundStyle" value="gradient" />
+            <span class="pv pv-gradient" aria-hidden="true"><i></i><b></b><i></i></span>
+            <span class="style-name">Colour gradient</span>
+            <span class="style-desc">Soft colours from the cover</span>
+          </label>
+          <label class="style">
+            <input type="radio" name="backgroundStyle" value="dark" />
+            <span class="pv pv-dark" aria-hidden="true"><i></i><b></b><i></i></span>
+            <span class="style-name">Plain dark</span>
+            <span class="style-desc">No picture, just a faint glow</span>
+          </label>
+          <label class="style">
+            <input type="radio" name="backgroundStyle" value="split" />
+            <span class="pv pv-split" aria-hidden="true"><em></em><span><i></i><b></b><i></i></span></span>
+            <span class="style-name">Art on the side</span>
+            <span class="style-desc">Sharp cover left, lyrics right</span>
+          </label>
+        </div>
+      </section>
+
+      <section class="group">
         <h2 class="mono">Look</h2>
         <label class="row">
           <span class="row-label">Word size</span>
@@ -97,6 +156,8 @@
           <dt class="mono">[ ]</dt><dd>Lyrics offset −/+ 100 ms</dd>
           <dt class="mono">B</dt><dd>Cycle blur</dd>
           <dt class="mono">H</dt><dd>Hide / show the player bar</dd>
+          <dt class="mono">S</dt><dd>Next lyrics style</dd>
+          <dt class="mono">G</dt><dd>Next background style</dd>
         </dl>
       </section>
 

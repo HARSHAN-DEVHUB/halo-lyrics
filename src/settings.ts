@@ -1,3 +1,4 @@
+import "./report.ts";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -16,6 +17,11 @@ const ranges: Record<NumKey, (v: number) => string> = {
   offsetMs: (v) => `${v > 0 ? "+" : ""}${v} ms`,
 };
 const checks: BoolKey[] = ["mirrorAll", "autoOpen", "launchAtLogin", "hidePlayerBar"];
+/** Radio groups whose `name` is the settings key. */
+const radios = ["lyricsStyle", "backgroundStyle"] as const;
+
+const radioInputs = (name: (typeof radios)[number]) =>
+  [...document.querySelectorAll<HTMLInputElement>(`input[type="radio"][name="${name}"]`)];
 
 let current: Settings | null = null;
 
@@ -35,6 +41,7 @@ function render(s: Settings) {
     $(`${key}-out`).textContent = ranges[key](s[key]);
   }
   for (const key of checks) $<HTMLInputElement>(key).checked = s[key];
+  for (const name of radios) for (const input of radioInputs(name)) input.checked = input.value === s[name];
   $<HTMLSelectElement>("autoCloseMinutes").value = String(s.autoCloseMinutes);
   $<HTMLSelectElement>("monitor").value = s.monitor ?? "";
 }
@@ -72,6 +79,13 @@ function wire() {
   for (const key of checks) {
     const input = $<HTMLInputElement>(key);
     input.addEventListener("change", () => save({ [key]: input.checked } as Partial<Settings>));
+  }
+  for (const name of radios) {
+    for (const input of radioInputs(name)) {
+      input.addEventListener("change", () => {
+        if (input.checked) save({ [name]: input.value } as Partial<Settings>);
+      });
+    }
   }
   const autoClose = $<HTMLSelectElement>("autoCloseMinutes");
   autoClose.addEventListener("change", () => save({ autoCloseMinutes: Number(autoClose.value) }));
