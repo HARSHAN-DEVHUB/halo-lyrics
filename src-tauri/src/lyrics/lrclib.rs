@@ -6,7 +6,7 @@ use std::time::Duration;
 
 const BASE: &str = "https://lrclib.net/api";
 /// Sent in the User-Agent as LRCLIB asks. Point this at your fork/repo.
-pub const PROJECT_URL: &str = "https://github.com/your-name/halo-lyrics";
+pub const PROJECT_URL: &str = "https://github.com/HARSHAN-DEVHUB/glowline-releases";
 /// LRCLIB answers are a few KB; refuse anything absurd instead of buffering it.
 const MAX_RESPONSE_BYTES: usize = 4 * 1024 * 1024;
 /// Search results scored per query (scoring is not free).
@@ -65,7 +65,7 @@ impl std::fmt::Display for FetchError {
 }
 
 pub fn client() -> reqwest::Client {
-    let ua = format!("HaloLyrics/{} ({PROJECT_URL})", env!("CARGO_PKG_VERSION"));
+    let ua = format!("Glowline/{} ({PROJECT_URL})", env!("CARGO_PKG_VERSION"));
     reqwest::Client::builder()
         .user_agent(ua)
         .timeout(Duration::from_secs(12))

@@ -203,7 +203,7 @@ pub fn show_lyrics(app: &AppHandle) {
                     &label,
                     WebviewUrl::App("index.html".into()),
                 )
-                .title("Halo Lyrics")
+                .title("Glowline")
                 .decorations(false)
                 .always_on_top(true)
                 .skip_taskbar(true)
@@ -270,7 +270,7 @@ pub fn open_settings(app: &AppHandle) {
     }
     log::info!("settings: creating the window");
     let built = WebviewWindowBuilder::new(app, SETTINGS, WebviewUrl::App("settings.html".into()))
-        .title("Halo Lyrics Settings")
+        .title("Glowline Settings")
         .inner_size(560.0, 780.0)
         .min_inner_size(440.0, 480.0)
         .resizable(true)

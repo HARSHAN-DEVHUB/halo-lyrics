@@ -3,16 +3,17 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Halo Lyrics — Settings</title>
+    <title>Glowline — Settings</title>
     <link rel="stylesheet" href="/src/settings.css" />
   </head>
   <body>
     <main class="wrap">
       <header class="head">
-        <svg class="ring" viewBox="0 0 24 24" aria-hidden="true">
-          <circle cx="12" cy="12" r="8.25" fill="none" stroke="currentColor" stroke-width="2.5" />
+        <svg class="ring" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" aria-hidden="true">
+          <circle cx="32" cy="26" r="14.5" />
+          <path d="M13 51.5H51" />
         </svg>
-        <h1>Halo Lyrics</h1>
+        <h1>Glowline</h1>
         <span class="mono head-sub">Settings</span>
       </header>
 
@@ -116,11 +117,11 @@
           </select>
         </label>
         <label class="row check">
-          <span class="row-label">Closing the window quits Halo Lyrics</span>
+          <span class="row-label">Closing the window quits Glowline</span>
           <input type="checkbox" id="closeQuits" />
         </label>
         <p class="note">
-          Turn this off to keep Halo Lyrics running in the tray when you close it, so it can open by itself
+          Turn this off to keep Glowline running in the tray when you close it, so it can open by itself
           when music starts.
         </p>
         <label class="row">
@@ -167,6 +168,15 @@
           <span class="mono" id="override-dir">Music/Lyrics</span>, named
           <span class="mono">Artist - Title.lrc</span>, are used first.
         </p>
+      </section>
+
+      <section class="group">
+        <h2 class="mono">Updates</h2>
+        <div class="row">
+          <span class="row-label">Glowline <span class="mono dim" id="update-version"></span></span>
+          <button class="btn" id="update-btn">Check for updates</button>
+        </div>
+        <p class="note" id="update-status">Glowline checks for updates by itself when it starts and every few hours.</p>
       </section>
 
       <section class="group keys">

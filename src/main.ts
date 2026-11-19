@@ -14,6 +14,7 @@ import type {
   MediaCommand,
   NowPlaying,
   Settings,
+  UpdateStatus,
 } from "./types.ts";
 import { BACKGROUND_STYLES, LYRICS_STYLES, STYLE_NAMES } from "./types.ts";
 
@@ -205,7 +206,7 @@ function refreshMode() {
     stage.clear();
     card.classList.remove("instrumental");
     card.classList.toggle("pending", !ly);
-    setText(cardNote, ly ? "" : "Finding lyrics");
+    setText(cardNote, ly ? "" : "Finding lyrics…");
     if (ly?.kind === "synced") stage.setLines(ly.lines, current.durationMs);
     else if (ly?.kind === "plain") plain.set(ly.text);
     else if (ly?.kind === "instrumental") {
@@ -227,8 +228,8 @@ let lastSecond = -1;
 
 function needsFrames(): boolean {
   if (document.visibilityState !== "visible" || mode === "idle") return false;
-  // The "Finding lyrics" dots animate even while paused.
-  return clock.isPlaying || (mode === "card" && card.classList.contains("pending"));
+  // The "Finding lyrics…" indicator is pure CSS, so it needs no frames.
+  return clock.isPlaying;
 }
 
 function frame() {
@@ -238,7 +239,6 @@ function frame() {
   else if (mode === "plain" && np) plain.update(t, np.durationMs);
   else if (mode === "card" && np && card.classList.contains("instrumental"))
     updateCardDots(cardDots, np.durationMs ? t / np.durationMs : 0, t);
-  else if (mode === "card" && card.classList.contains("pending")) updateCardDots(cardDots, 0, performance.now());
 
   if (np && chromeVisible && !settings.hidePlayerBar && mode !== "idle") {
     const d = np.durationMs;
@@ -410,6 +410,35 @@ function closeWindow() {
   else invoke("close_window").catch((e) => console.warn("close_window", e));
 }
 
+// ------------------------------------------------------------------ updates
+
+const updateBtn = $<HTMLButtonElement>("btn-update");
+
+function onUpdateStatus(status: UpdateStatus) {
+  const ready = status.state === "ready" || status.state === "installing";
+  updateBtn.hidden = !ready;
+  app.classList.toggle("update-ready", ready);
+  if (status.state === "ready") {
+    updateBtn.disabled = false;
+    updateBtn.textContent = "Update ready · Restart";
+    updateBtn.title = `Restart Glowline to install version ${status.version}`;
+  } else if (status.state === "installing") {
+    updateBtn.disabled = true;
+    updateBtn.textContent = "Updating…";
+  }
+}
+
+updateBtn.addEventListener("click", () => {
+  updateBtn.disabled = true;
+  updateBtn.textContent = "Updating…";
+  invoke("install_update").catch((e) => {
+    console.warn("install_update", e);
+    updateBtn.disabled = false;
+    updateBtn.textContent = "Update ready · Restart";
+    toast("Couldn't install the update");
+  });
+});
+
 $("btn-settings").addEventListener("click", openSettings);
 $("btn-mode").addEventListener("click", toggleWindowMode);
 $("btn-close").addEventListener("click", closeWindow);
@@ -446,6 +475,8 @@ async function boot() {
   await listen<NowPlaying | null>("now-playing", (e) => onNowPlaying(e.payload));
   await listen<LyricsEvent>("lyrics", (e) => onLyrics(e.payload));
   await listen<Settings>("settings", (e) => applySettings(e.payload));
+  await listen<UpdateStatus>("update-status", (e) => onUpdateStatus(e.payload));
+  invoke<UpdateStatus>("update_status").then(onUpdateStatus).catch(() => {});
   try {
     const snap = await invoke<AppSnapshot>("get_state");
     applySettings(snap.settings);

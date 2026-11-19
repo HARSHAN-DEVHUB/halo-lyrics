@@ -4,7 +4,7 @@ import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { getVersion } from "@tauri-apps/api/app";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import type { MonitorInfo, Settings } from "./types.ts";
+import type { MonitorInfo, Settings, UpdateStatus } from "./types.ts";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -118,6 +118,68 @@ function wire() {
   });
 }
 
+// ------------------------------------------------------------------ updates
+
+let updateStatus: UpdateStatus = { state: "idle" };
+
+function renderUpdate(status: UpdateStatus) {
+  updateStatus = status;
+  const btn = $<HTMLButtonElement>("update-btn");
+  const note = $("update-status");
+  btn.disabled = false;
+  switch (status.state) {
+    case "disabled":
+      btn.textContent = "Check for updates";
+      btn.disabled = true;
+      note.textContent = "Updates are turned off in development builds.";
+      break;
+    case "checking":
+      btn.textContent = "Checking…";
+      btn.disabled = true;
+      note.textContent = "Looking for a new version…";
+      break;
+    case "upToDate":
+      btn.textContent = "Check for updates";
+      note.textContent = "You have the latest version.";
+      break;
+    case "downloading":
+      btn.textContent = "Downloading…";
+      btn.disabled = true;
+      note.textContent = `Downloading Glowline ${status.version}…`;
+      break;
+    case "ready":
+      btn.textContent = "Restart to update";
+      note.textContent =
+        `Glowline ${status.version} is downloaded and ready.` + (status.notes ? `
+
+${status.notes}` : "");
+      break;
+    case "installing":
+      btn.textContent = "Updating…";
+      btn.disabled = true;
+      note.textContent = `Installing Glowline ${status.version}. It will open again by itself.`;
+      break;
+    case "error":
+      btn.textContent = "Try again";
+      note.textContent = `Couldn't check for updates: ${status.message}`;
+      break;
+    default:
+      btn.textContent = "Check for updates";
+      note.textContent = "Glowline checks for updates by itself when it starts and every few hours.";
+  }
+}
+
+function wireUpdates() {
+  $("update-btn").addEventListener("click", async () => {
+    try {
+      if (updateStatus.state === "ready") await invoke("install_update");
+      else renderUpdate(await invoke<UpdateStatus>("check_for_updates"));
+    } catch (e) {
+      renderUpdate({ state: "error", message: String(e) });
+    }
+  });
+}
+
 async function boot() {
   wire();
   await listen<Settings>("settings", (e) => render(e.payload));
@@ -129,7 +191,15 @@ async function boot() {
   } catch {
     /* ignore */
   }
-  getVersion().then((v) => ($("version").textContent = `v${v}`)).catch(() => {});
+  getVersion()
+    .then((v) => {
+      $("version").textContent = `v${v}`;
+      $("update-version").textContent = `v${v}`;
+    })
+    .catch(() => {});
+  wireUpdates();
+  await listen<UpdateStatus>("update-status", (e) => renderUpdate(e.payload));
+  renderUpdate(await invoke<UpdateStatus>("update_status"));
 }
 
 boot();

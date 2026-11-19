@@ -1,0 +1,134 @@
+# Builds Glowline and publishes it as an automatic update.
+#
+# Runs on every push to main, but only ships when the version in
+# src-tauri/tauri.conf.json has no release yet, so day-to-day pushes don't
+# ship anything. To ship, run `npm run release` (bumps the version, commits
+# and pushes). Installers and the signed `latest.json` the app checks go to
+# the public repo in RELEASES_REPO; this source repo stays private.
+#
+# Secrets (Settings → Secrets and variables → Actions):
+#   TAURI_SIGNING_PRIVATE_KEY           contents of the updater private key
+#   TAURI_SIGNING_PRIVATE_KEY_PASSWORD  its password
+#   RELEASES_TOKEN                      token that can create releases in RELEASES_REPO
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+env:
+  RELEASES_REPO: HARSHAN-DEVHUB/glowline-releases
+
+jobs:
+  check:
+    name: Is this a new version?
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      publish: ${{ steps.v.outputs.publish }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: v
+        env:
+          GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
+          HAS_SIGNING_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY != '' }}
+        run: |
+          VERSION=$(jq -r .version src-tauri/tauri.conf.json)
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          if [ -z "$GH_TOKEN" ] || [ "$HAS_SIGNING_KEY" != "true" ]; then
+            echo "::warning::Release secrets are not set up yet (see README → Shipping an update); nothing was shipped."
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          elif gh release view "v$VERSION" --repo "$RELEASES_REPO" > /dev/null 2>&1; then
+            echo "v$VERSION is already released; nothing to ship."
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "v$VERSION is new; building it."
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  release:
+    name: Build and publish v${{ needs.check.outputs.version }}
+    needs: check
+    if: needs.check.outputs.publish == 'true'
+    runs-on: windows-latest
+    env:
+      VERSION: ${{ needs.check.outputs.version }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - run: npm ci
+
+      - name: Test
+        run: npm test
+
+      - name: Build signed installer
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: npx tauri build --bundles nsis --config '{"bundle":{"createUpdaterArtifacts":true}}'
+
+      - name: Release notes
+        run: |
+          PREV=$(git tag -l 'v*' --sort=-v:refname | head -n 1)
+          if [ -n "$PREV" ]; then
+            git log "$PREV..HEAD" --no-merges --pretty='- %s' | grep -v -E '^- Release v' > notes.md || true
+          fi
+          if [ ! -s notes.md ]; then
+            git log -1 --pretty='- %s' > notes.md
+          fi
+          cat notes.md
+
+      - name: Publish update
+        env:
+          GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
+        run: |
+          EXE=$(ls src-tauri/target/release/bundle/nsis/*_x64-setup.exe)
+          NAME=$(basename "$EXE")
+          URL="https://github.com/$RELEASES_REPO/releases/download/v$VERSION/$NAME"
+          node -e '
+            const fs = require("fs");
+            const [exe, url, version] = process.argv.slice(1);
+            const signature = fs.readFileSync(exe + ".sig", "utf8").trim();
+            const win = { signature, url };
+            fs.writeFileSync("latest.json", JSON.stringify({
+              version,
+              notes: fs.readFileSync("notes.md", "utf8").trim(),
+              pub_date: new Date().toISOString(),
+              platforms: { "windows-x86_64": win, "windows-x86_64-nsis": win },
+            }, null, 2));
+          ' "$EXE" "$URL" "$VERSION"
+          cat latest.json
+          gh release create "v$VERSION" "$EXE" latest.json \
+            --repo "$RELEASES_REPO" \
+            --title "Glowline $VERSION" \
+            --notes-file notes.md \
+            --latest
+
+      - name: Tag the source
+        run: |
+          git tag "v$VERSION"
+          git push origin "v$VERSION"

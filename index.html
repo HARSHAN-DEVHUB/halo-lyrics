@@ -3,110 +3,49 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Halo Lyrics</title>
+    <title>Glowline</title>
     <!-- Loading screen styles are inline so it shows before anything else loads. -->
     <style>
-      #loader {
-        position: fixed;
-        inset: 0;
-        z-index: 100;
-        display: grid;
-        place-items: center;
-        background: #09090c;
-        color: #f4f1ec;
-        transition: opacity 0.6s ease, visibility 0s linear 0.6s;
-      }
-      #loader.done {
-        opacity: 0;
-        visibility: hidden;
-      }
-      .ld {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 20px;
-      }
-      .ld svg {
-        width: 72px;
-        height: 72px;
-        overflow: visible;
-        filter: drop-shadow(0 0 14px rgba(244, 241, 236, 0.28));
-      }
-      .ld circle {
-        fill: none;
-        stroke: currentColor;
-        stroke-width: 2.5;
-        stroke-linecap: round;
-      }
-      .ld .ld-track {
-        opacity: 0.12;
-      }
-      .ld .ld-arc {
-        transform-origin: 12px 12px;
-        animation:
-          ld-spin 1.6s linear infinite,
-          ld-dash 1.6s ease-in-out infinite;
-      }
-      .ld-name {
-        font: italic 400 34px/1 "Instrument Serif", Georgia, serif;
-        letter-spacing: -0.01em;
-        opacity: 0;
-        animation: ld-in 0.8s ease 0.15s forwards;
-      }
-      .ld-sub {
-        font: 11px/1 "Geist Mono", ui-monospace, Consolas, monospace;
-        letter-spacing: 0.24em;
-        text-transform: uppercase;
-        color: rgba(244, 241, 236, 0.6);
-        opacity: 0;
-        animation: ld-in 0.8s ease 0.35s forwards;
-      }
-      @keyframes ld-spin {
-        to {
-          transform: rotate(360deg);
-        }
-      }
-      @keyframes ld-dash {
-        0% {
-          stroke-dasharray: 2 98;
-          stroke-dashoffset: 0;
-        }
-        50% {
-          stroke-dasharray: 62 38;
-          stroke-dashoffset: -18;
-        }
-        100% {
-          stroke-dasharray: 2 98;
-          stroke-dashoffset: -98;
-        }
-      }
-      @keyframes ld-in {
-        from {
-          opacity: 0;
-          transform: translateY(6px);
-        }
-        to {
-          opacity: 1;
-          transform: none;
-        }
-      }
-      @media (prefers-reduced-motion: reduce) {
-        .ld .ld-arc {
-          animation: none;
-        }
+      #loader{position:fixed;inset:0;z-index:100;background:#09090C;display:grid;place-items:center;color:#F4F1EC;opacity:1;visibility:visible;transition:opacity .6s ease,visibility 0s linear .6s}
+      #loader.done{opacity:0;visibility:hidden}
+      .ld-stack{display:flex;flex-direction:column;align-items:center}
+      .ld-mark{position:relative;width:clamp(64px,9vmin,96px);aspect-ratio:1}
+      .ld-mark svg{position:relative;display:block;width:100%;height:100%;overflow:visible}
+      .ld-glow{position:absolute;left:50%;top:41%;width:260%;aspect-ratio:1;margin:-130% 0 0 -130%;border-radius:50%;background:radial-gradient(closest-side,rgba(244,241,236,.16),rgba(244,241,236,.05) 55%,rgba(244,241,236,0));opacity:0;will-change:transform,opacity;animation:ld-in 1s ease .2s both,ld-breathe 2.4s ease-in-out 1.2s infinite}
+      .ld-ring{stroke-dasharray:100 100;animation:ld-draw .9s cubic-bezier(.65,0,.35,1) both}
+      .ld-line{transform-box:fill-box;transform-origin:center;animation:ld-grow .75s cubic-bezier(.33,0,.2,1) .25s both,ld-dim .5s ease 1.1s forwards}
+      .ld-sing{stroke-dasharray:100 102;stroke-dashoffset:101;opacity:0;animation:ld-sing 2.4s cubic-bezier(.45,0,.4,1) 1.2s infinite}
+      .ld-name{margin-top:clamp(18px,2.6vmin,28px);font:italic 400 clamp(28px,4.2vmin,44px)/1 "Instrument Serif",Georgia,serif;letter-spacing:.01em;animation:ld-up .7s ease-out .45s both}
+      .ld-status{margin-top:clamp(12px,1.6vmin,18px);font:500 clamp(10px,1.2vmin,12px)/1 "Geist Mono",ui-monospace,Consolas,monospace;letter-spacing:.24em;text-transform:uppercase;opacity:.45;animation:ld-fade .6s ease .8s both,ld-hush 2.4s ease-in-out 1.4s infinite}
+      @keyframes ld-draw{from{stroke-dashoffset:100}to{stroke-dashoffset:0}}
+      @keyframes ld-grow{from{transform:scaleX(0);opacity:0}to{transform:scaleX(1);opacity:1}}
+      @keyframes ld-dim{to{opacity:.32}}
+      @keyframes ld-sing{0%{stroke-dashoffset:101;opacity:1}58%{stroke-dashoffset:0;opacity:1}75%{stroke-dashoffset:0;opacity:1}96%,100%{stroke-dashoffset:0;opacity:0}}
+      @keyframes ld-in{from{opacity:0;transform:scale(.85)}to{opacity:.7;transform:scale(1)}}
+      @keyframes ld-breathe{0%,100%{opacity:.7;transform:scale(1)}50%{opacity:1;transform:scale(1.07)}}
+      @keyframes ld-up{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+      @keyframes ld-fade{from{opacity:0}to{opacity:.45}}
+      @keyframes ld-hush{0%,100%{opacity:.45}50%{opacity:.28}}
+      @media (prefers-reduced-motion:reduce){
+        #loader *{animation:none!important}
+        .ld-glow{opacity:.8}.ld-ring{stroke-dashoffset:0}.ld-line{opacity:1}.ld-sing{opacity:0}
       }
     </style>
     <link rel="stylesheet" href="/src/styles.css" />
   </head>
   <body>
-    <div id="loader" role="status" aria-label="Loading Halo Lyrics">
-      <div class="ld">
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <circle class="ld-track" cx="12" cy="12" r="8.25" />
-          <circle class="ld-arc" cx="12" cy="12" r="8.25" pathLength="100" />
-        </svg>
-        <div class="ld-name">Halo Lyrics</div>
-        <div class="ld-sub">Getting ready</div>
+    <div id="loader" role="status" aria-label="Loading Glowline">
+      <div class="ld-stack">
+        <div class="ld-mark" aria-hidden="true">
+          <div class="ld-glow"></div>
+          <svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round">
+            <circle class="ld-ring" cx="32" cy="26" r="14.5" pathLength="100" transform="rotate(-90 32 26)" />
+            <path class="ld-line" d="M13 51.5H51" />
+            <path class="ld-sing" d="M13 51.5H51" pathLength="100" />
+          </svg>
+        </div>
+        <div class="ld-name">Glowline</div>
+        <div class="ld-status">Getting ready</div>
       </div>
     </div>
 
@@ -135,7 +74,15 @@
         <img class="card-art" id="card-art" alt="" />
         <h1 class="card-title" id="card-title"></h1>
         <p class="card-artist" id="card-artist"></p>
-        <p class="card-note mono" id="card-note"></p>
+        <p class="card-note mono">
+          <svg class="ld-mini" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true">
+            <circle cx="10" cy="8" r="5.5" opacity=".25" />
+            <circle class="ld-mini-arc" cx="10" cy="8" r="5.5" pathLength="100" />
+            <path d="M3.5 17.25H16.5" opacity=".25" />
+            <path class="ld-mini-sing" d="M3.5 17.25H16.5" pathLength="100" />
+          </svg>
+          <span id="card-note"></span>
+        </p>
         <div class="dots card-dots" id="card-dots" aria-hidden="true"><i></i><i></i><i></i></div>
       </section>
 
@@ -179,14 +126,18 @@
 
       <!-- 6. top-left label -->
       <header class="label chrome">
-        <svg class="ring" viewBox="0 0 24 24" aria-hidden="true">
-          <circle cx="12" cy="12" r="8.25" fill="none" stroke="currentColor" stroke-width="2.5" />
+        <svg class="ring" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" aria-hidden="true">
+          <circle cx="32" cy="26" r="14.5" />
+          <path d="M13 51.5H51" />
         </svg>
         <span class="mono" id="label-text">LYRICS</span>
       </header>
 
       <!-- 7. top-right window controls -->
       <div class="winctl chrome">
+        <button class="update-pill mono" id="btn-update" hidden title="Restart Glowline to install the update">
+          Update ready · Restart
+        </button>
         <button class="btn" id="btn-mode" title="Window (F)" aria-label="Switch between full screen and window">
           <svg class="i-shrink" viewBox="0 0 24 24" aria-hidden="true">
             <path d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z" />

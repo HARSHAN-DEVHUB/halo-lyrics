@@ -376,3 +376,7 @@ select option {
 .foot a {
   color: var(--text);
 }
+
+#update-status {
+  white-space: pre-line;
+}

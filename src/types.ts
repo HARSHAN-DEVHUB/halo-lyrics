@@ -83,3 +83,14 @@ export type AppSnapshot = {
 };
 
 export type MediaCommand = "togglePlayPause" | "next" | "previous";
+
+/** Mirrors `UpdateStatus` in src-tauri/src/updater.rs. */
+export type UpdateStatus =
+  | { state: "idle" }
+  | { state: "disabled" }
+  | { state: "checking" }
+  | { state: "upToDate" }
+  | { state: "downloading"; version: string }
+  | { state: "ready"; version: string; notes?: string | null }
+  | { state: "installing"; version: string }
+  | { state: "error"; message: string };

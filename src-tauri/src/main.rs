@@ -10,6 +10,7 @@ mod power;
 mod safety;
 mod settings;
 mod ui;
+mod updater;
 
 use hub::NowPlaying;
 use lyrics::{LyricsEvent, LyricsService};
@@ -191,13 +192,30 @@ async fn open_settings(app: AppHandle) {
     ui::open_settings(&app);
 }
 
+#[tauri::command]
+fn update_status(app: AppHandle) -> updater::UpdateStatus {
+    app.state::<updater::Updates>().status()
+}
+
+#[tauri::command]
+async fn check_for_updates(app: AppHandle) -> updater::UpdateStatus {
+    updater::check(&app, true).await
+}
+
+#[tauri::command]
+async fn install_update(app: AppHandle) -> Result<(), String> {
+    updater::install(&app)
+}
+
 // ------------------------------------------------------------------ setup
 
 fn setup_tray(app: &tauri::App) -> tauri::Result<()> {
     let open = MenuItem::with_id(app, "open", "Open lyrics mode", true, Some(TOGGLE_SHORTCUT))?;
     let settings = MenuItem::with_id(app, "settings", "Settingsâ€¦", true, None::<&str>)?;
     let pause = CheckMenuItem::with_id(app, "pause", "Pause detection", true, false, None::<&str>)?;
-    let quit = MenuItem::with_id(app, "quit", "Quit Halo Lyrics", true, None::<&str>)?;
+    let update = MenuItem::with_id(app, updater::TRAY_ITEM, "Check for updates…", true, None::<&str>)?;
+    app.state::<updater::Updates>().set_tray_item(update.clone());
+    let quit = MenuItem::with_id(app, "quit", "Quit Glowline", true, None::<&str>)?;
     let menu = Menu::with_items(
         app,
         &[
@@ -205,14 +223,15 @@ fn setup_tray(app: &tauri::App) -> tauri::Result<()> {
             &settings,
             &PredefinedMenuItem::separator(app)?,
             &pause,
+            &update,
             &PredefinedMenuItem::separator(app)?,
             &quit,
         ],
     )?;
 
     let pause_item = pause.clone();
-    let mut tray = TrayIconBuilder::with_id("halo")
-        .tooltip("Halo Lyrics")
+    let mut tray = TrayIconBuilder::with_id("glowline")
+        .tooltip("Glowline")
         .menu(&menu)
         .show_menu_on_left_click(false)
         .on_menu_event(move |app, event| {
@@ -227,6 +246,7 @@ fn setup_tray(app: &tauri::App) -> tauri::Result<()> {
                         .store(paused, Ordering::Relaxed);
                     log::info!("detection paused: {paused}");
                 }
+                updater::TRAY_ITEM => updater::on_tray_click(app),
                 "quit" => quit_app(app),
                 _ => {}
             }
@@ -241,11 +261,60 @@ fn setup_tray(app: &tauri::App) -> tauri::Result<()> {
                 ui::spawn(tray.app_handle(), ui::toggle_lyrics);
             }
         });
-    if let Some(icon) = app.default_window_icon() {
-        tray = tray.icon(icon.clone());
-    }
+    tray = match tray_icon() {
+        Some(icon) => tray.icon(icon).icon_as_template(cfg!(target_os = "macos")),
+        None => match app.default_window_icon() {
+            Some(icon) => tray.icon(icon.clone()),
+            None => tray,
+        },
+    };
     tray.build(app)?;
     Ok(())
+}
+
+/// The Glowline tray glyph: light on a dark taskbar, dark on a light one.
+/// (macOS treats it as a template image and recolours it itself.)
+fn tray_icon() -> Option<tauri::image::Image<'static>> {
+    let bytes: &[u8] = if taskbar_is_light() {
+        include_bytes!("../icons/tray/tray-32-dark.png")
+    } else {
+        include_bytes!("../icons/tray/tray-32-light.png")
+    };
+    tauri::image::Image::from_bytes(bytes)
+        .map_err(|e| log::warn!("tray icon: {e}"))
+        .ok()
+}
+
+#[cfg(windows)]
+fn taskbar_is_light() -> bool {
+    use windows::core::w;
+    use windows::Win32::System::Registry::{RegGetValueW, HKEY_CURRENT_USER, RRF_RT_REG_DWORD};
+    let mut value: u32 = 0;
+    let mut size = std::mem::size_of::<u32>() as u32;
+    // SAFETY: the out-pointers point at live locals of the declared size.
+    let result = unsafe {
+        RegGetValueW(
+            HKEY_CURRENT_USER,
+            w!(r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize"),
+            w!("SystemUsesLightTheme"),
+            RRF_RT_REG_DWORD,
+            None,
+            Some(&mut value as *mut u32 as *mut _),
+            Some(&mut size),
+        )
+    };
+    result.is_ok() && value == 1
+}
+
+#[cfg(target_os = "macos")]
+fn taskbar_is_light() -> bool {
+    // Template images are recoloured by macOS; start from the dark glyph.
+    true
+}
+
+#[cfg(not(any(windows, target_os = "macos")))]
+fn taskbar_is_light() -> bool {
+    false
 }
 
 /// Writes panics to the log file before the process goes down. Release builds
@@ -294,13 +363,14 @@ fn main() {
         // Must be the first plugin: a second launch hands over to the running
         // copy and exits before anything else (tray, shortcut, overlay) starts.
         .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
-            log::info!("Halo Lyrics is already running; using the existing copy");
+            log::info!("Glowline is already running; using the existing copy");
             if !args.iter().any(|a| a == AUTOSTART_FLAG) {
                 ui::spawn(app, ui::show_lyrics);
             }
         }))
         .plugin(log_plugin.build())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_autostart::init(
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
             Some(vec![AUTOSTART_FLAG]),
@@ -328,6 +398,9 @@ fn main() {
             open_settings,
             frontend_ready,
             frontend_log,
+            update_status,
+            check_for_updates,
+            install_update,
         ])
         .on_window_event(|window, event| {
             if let WindowEvent::CloseRequested { api, .. } = event {
@@ -351,7 +424,7 @@ fn main() {
                 override_dir,
             ));
             let source = media::platform_source(paths.resource_dir().ok());
-            log::info!("Halo Lyrics {} starting", app.package_info().version);
+            log::info!("Glowline {} starting", app.package_info().version);
 
             // Keep the OS autostart entry in step with the setting.
             let al = app.autolaunch();
@@ -373,6 +446,7 @@ fn main() {
                 lyrics_service,
                 power: power::KeepAwake::new(),
             });
+            app.manage(updater::Updates::new());
 
             // Arm the Esc kill switch before any full-screen window can appear.
             safety::start(app.handle());
@@ -384,6 +458,7 @@ fn main() {
             let (tx, rx) = std::sync::mpsc::channel();
             app.state::<AppState>().source.start(tx);
             hub::spawn(app.handle().clone(), rx);
+            updater::start(app.handle());
 
             // Full screen on launch (but stay in the tray when started at login).
             if !launched_at_login {
@@ -392,7 +467,7 @@ fn main() {
             Ok(())
         })
         .build(tauri::generate_context!())
-        .expect("error while building Halo Lyrics")
+        .expect("error while building Glowline")
         .run(|app, event| match event {
             // Closing every window must not quit: we live in the tray.
             RunEvent::ExitRequested { api, code, .. } if code.is_none() => api.prevent_exit(),

@@ -1,10 +1,12 @@
-# Halo Lyrics
+<p align="center"><img src="app-icon.svg" width="128" alt="Glowline icon"></p>
+
+# Glowline
 
 **Word-by-word synced lyrics for whatever is playing on your computer, full screen or in a window.**
 
-Halo Lyrics is a small desktop app for Windows and macOS. It notices what's playing (Spotify, YouTube in the browser, Apple Music, VLC, and more), fetches synced lyrics, and shows them over the album art, either covering the whole screen or in a normal window you can move, resize and close.
+Glowline is a small desktop app for Windows and macOS. It notices what's playing (Spotify, YouTube in the browser, Apple Music, VLC, and more), fetches synced lyrics, and shows them over the album art, either covering the whole screen or in a normal window you can move, resize and close.
 
-- [Install](#install-windows) · [Uninstall](#uninstall-windows) · [Using it](#using-it) · [Running from source](#running-from-source)
+- [Install](#install-windows) · [Updates](#updates) · [Uninstall](#uninstall-windows) · [Using it](#using-it) · [Running from source](#running-from-source) · [Shipping an update](#shipping-an-update)
 
 Built with [Tauri 2](https://tauri.app) (Rust backend) and plain TypeScript + Vite (no frontend framework).
 
@@ -23,33 +25,42 @@ Built with [Tauri 2](https://tauri.app) (Rust backend) and plain TypeScript + Vi
 - **Styles you can pick.** Four lyrics styles (Cinematic, Karaoke, Minimal, Party) and four backgrounds (Album art, Colour gradient, Plain dark, Art on the side), chosen separately in Settings or cycled with `S` and `G`.
 - **Sharp artwork.** Browsers only hand the OS a small thumbnail, so when the cover is small the app fetches the same song's cover in high resolution (up to 2000 px) from iTunes or Deezer. It only swaps when the title and artist match, and it can be turned off.
 - **Full screen or a window.** Switch any time with `F` / `F11` or the button at the top right. In a window you get the usual title bar with minimise, maximise and close.
-- **Closes like a normal app.** The ✕ button quits Halo Lyrics. If you prefer, Settings can make ✕ hide it to the tray instead, so it can open by itself when music starts.
+- **Closes like a normal app.** The ✕ button quits Glowline. If you prefer, Settings can make ✕ hide it to the tray instead, so it can open by itself when music starts.
 - **One copy at a time.** Starting the app again just brings up the copy that's already running.
 - **Multi-monitor.** Pick a display, or mirror the lyrics on every display.
 - **Auto-open and auto-close.** Opens when music starts and closes after music stops (both optional).
 - **Keeps the screen awake** while lyrics are showing and music is playing.
 - **Safe full-screen.** Esc always gets you out, even if the app hangs (see [Safety](#safety-escape-hatches)).
+- **Updates itself.** New versions download in the background; one click restarts into them (see [Updates](#updates)).
 
 ---
 
 ## Install (Windows)
 
-You need the installer file, `Halo Lyrics_0.1.0_x64-setup.exe`. To make it yourself, see [Build the installer](#build-the-installer); it ends up in `src-tauri\target\release\bundle\nsis\`.
+Download **`Glowline_<version>_x64-setup.exe`** from the [latest release](https://github.com/HARSHAN-DEVHUB/glowline-releases/releases/latest).
 
-1. Double-click **`Halo Lyrics_0.1.0_x64-setup.exe`**.
+1. Double-click the installer.
 2. Windows may show **"Windows protected your PC"**. This appears for every app that isn't signed with a paid code-signing certificate; it doesn't mean anything was found. Click **More info → Run anyway**.
 3. Follow the installer. It installs for your user account only, so it doesn't need administrator rights. If the WebView2 runtime is missing (rare on Windows 10/11), the installer downloads it.
-4. Start **Halo Lyrics** from the Start menu.
+4. Start **Glowline** from the Start menu.
 
-There's also an `.msi` installer in `src-tauri\target\release\bundle\msi\` if you prefer that format; it installs for all users and asks for administrator rights. Use one installer or the other, not both.
+Coming from **Halo Lyrics** (the app's old name)? Uninstall Halo Lyrics first, without ticking "Delete the application data"; Glowline uses the same settings and lyrics cache.
 
-To update, run the newer installer over the old one. Your settings and lyrics cache are kept.
+## Updates
+
+Glowline keeps itself up to date:
+
+- It checks for a new version about 15 seconds after it starts and then every 6 hours, and downloads it in the background.
+- When an update is ready you'll see **Update ready · Restart** at the top right of the lyrics screen (move the mouse), **Restart to update** in Settings → Updates, and **Restart to update to x.y.z** in the tray menu. Click any of them; the installer runs for a few seconds and Glowline opens again.
+- **Settings → Updates → Check for updates** (or the tray menu → **Check for updates…**) checks right away.
+
+Updates are signed: the app only installs an update whose signature matches the key it was built with. Your settings and lyrics cache are kept.
 
 ## Uninstall (Windows)
 
-1. Quit Halo Lyrics: close its window with ✕, or right-click the tray icon → **Quit Halo Lyrics**.
+1. Quit Glowline: close its window with ✕, or right-click the tray icon → **Quit Glowline**.
 2. If you turned on **Launch at login**, turn it off first in Settings (this removes the start-up entry).
-3. Open **Settings → Apps → Installed apps**, find **Halo Lyrics**, click **⋯ → Uninstall**. (Or Start menu → Halo Lyrics folder → **Uninstall**, or **Control Panel → Programs and Features**.)
+3. Open **Settings → Apps → Installed apps**, find **Glowline**, click **⋯ → Uninstall**. (Or Start menu → Glowline folder → **Uninstall**, or **Control Panel → Programs and Features**.)
 4. In the uninstaller, tick **Delete the application data** to also remove your settings, lyrics cache and logs.
 
 If you didn't tick that box, or used the `.msi`, you can delete these folders by hand afterwards:
@@ -68,7 +79,7 @@ Paste a path into the File Explorer address bar to open it.
 
 ### Start
 
-1. Launch Halo Lyrics. It opens full screen (or in a window, if you chose that) and shows a clock if nothing is playing.
+1. Launch Glowline. It opens full screen (or in a window, if you chose that) and shows a clock if nothing is playing.
 2. Play a song in Spotify, YouTube (Chrome or Edge), or any media player.
 3. Lyrics appear within a second or two.
 
@@ -76,7 +87,7 @@ Paste a path into the File Explorer address bar to open it.
 
 **Closing:** ✕ quits the app (you can change this in Settings → Display so that it hides to the tray instead). Esc closes the full-screen view.
 
-**Tray icon:** Halo Lyrics also has a tray icon. On Windows 11 it's usually hidden under the `^` arrow next to the clock; drag it onto the taskbar to keep it visible. Left-click it to show or hide the lyrics. Right-click it for **Settings**, **Pause detection** and **Quit**.
+**Tray icon:** Glowline also has a tray icon. On Windows 11 it's usually hidden under the `^` arrow next to the clock; drag it onto the taskbar to keep it visible. Left-click it to show or hide the lyrics. Right-click it for **Settings**, **Pause detection** and **Quit**.
 
 ### Keyboard shortcuts
 
@@ -169,7 +180,7 @@ See Tauri's [prerequisites guide](https://v2.tauri.app/start/prerequisites/) if 
 ### Install and run (development)
 
 ```bash
-git clone https://github.com/<your-name>/halo-lyrics.git
+git clone https://github.com/HARSHAN-DEVHUB/halo-lyrics.git
 cd halo-lyrics
 npm install
 npm run tauri dev
@@ -200,14 +211,42 @@ $env:CARGO_BUILD_JOBS=4; npm run tauri build
 
 Release builds are fully optimised and slow, so expect 10–20 minutes on a laptop (the first time, Tauri also downloads the NSIS and WiX installer tools). Output goes to:
 
-- Windows: `src-tauri\target\release\bundle\nsis\Halo Lyrics_<version>_x64-setup.exe` (recommended) and `src-tauri\target\release\bundle\msi\Halo Lyrics_<version>_x64_en-US.msi`
+- Windows: `src-tauri\target\release\bundle\nsis\Glowline_<version>_x64-setup.exe` (recommended) and `src-tauri\target\release\bundle\msi\Glowline_<version>_x64_en-US.msi`
 - macOS: `src-tauri/target/release/bundle/dmg/` and `.../bundle/macos/`
 
-Then follow [Install](#install-windows). To release a new version, raise `version` in `src-tauri/tauri.conf.json` (and `package.json`, `src-tauri/Cargo.toml`) before building.
+Then follow [Install](#install-windows). A local build is fine for trying things out, but it isn't signed for updates; to ship a version to installed copies, see [Shipping an update](#shipping-an-update).
+
+### Shipping an update
+
+Develop and test as usual (`npm run tauri dev`, `npm test`, `npm run test:rust`), commit, and push to `main`. Pushing alone doesn't ship anything. When you're ready to send the changes to everyone:
+
+```powershell
+npm run release          # 0.2.0 -> 0.2.1 (bug fixes)
+npm run release minor    # 0.2.0 -> 0.3.0 (new features)
+npm run release major    # 0.2.0 -> 1.0.0
+```
+
+This bumps the version in `package.json`, `src-tauri/tauri.conf.json` and `src-tauri/Cargo.toml`, commits `Release vX.Y.Z` and pushes. Then [`.github/workflows/release.yml`](.github/workflows/release.yml) takes over on GitHub Actions (about 10–15 minutes; follow it with `gh run watch`):
+
+1. Builds the Windows installer and signs it with the updater key.
+2. Publishes it, with a `latest.json` describing it, as a release on the public [glowline-releases](https://github.com/HARSHAN-DEVHUB/glowline-releases/releases) repo. Release notes are the commit messages since the previous release, so write commit messages people can read.
+3. Tags this commit `vX.Y.Z`.
+
+Installed copies read `latest.json`, see the newer version and update themselves. The source code stays private; only installers go to the public repo.
+
+**One-time setup (already done).** The workflow needs three repository secrets (Settings → Secrets and variables → Actions):
+
+| Secret | What |
+|---|---|
+| `TAURI_SIGNING_PRIVATE_KEY` | The updater private key (`%USERPROFILE%\.tauri\glowline-updater.key`) |
+| `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | Its password (`%USERPROFILE%\.tauri\glowline-updater.password`) |
+| `RELEASES_TOKEN` | A GitHub token allowed to create releases in `glowline-releases` |
+
+> **Keep a backup of the updater key and password** (for example in a password manager). Installed copies only accept updates signed with that key. If it's lost, existing installs can't be updated and everyone has to reinstall by hand.
 
 ### macOS: media adapter
 
-Since macOS 15.4, apps can't read "Now Playing" directly. Halo Lyrics bundles [ungive/mediaremote-adapter](https://github.com/ungive/mediaremote-adapter), which is **not committed** to this repo. Before building on macOS, build or download it and place these files:
+Since macOS 15.4, apps can't read "Now Playing" directly. Glowline bundles [ungive/mediaremote-adapter](https://github.com/ungive/mediaremote-adapter), which is **not committed** to this repo. Before building on macOS, build or download it and place these files:
 
 ```
 src-tauri/resources/macos/mediaremote-adapter.pl
@@ -320,10 +359,12 @@ src-tauri/
 
 ### Privacy
 
-Halo Lyrics only makes these network requests:
+Glowline only makes these network requests:
 
 - **Lyrics:** `lrclib.net`, with the song title, artist, album and duration.
 - **High-resolution artwork** (on by default, can be turned off in Settings → Look): when the player only provides a small cover, `itunes.apple.com` and `api.deezer.com` are searched with the song title and artist, and the matching cover image is downloaded.
+
+- **Updates:** `github.com`, to download `latest.json` and, when there's a new version, the installer. No information about you or your music is sent.
 
 Nothing else leaves your computer. There's no analytics and no account.
 

@@ -379,23 +379,59 @@ body {
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: rgba(244, 241, 236, 0.62);
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
 }
 .card-dots {
   margin-top: 18px;
   height: 30px;
   display: none;
 }
-.card.instrumental .card-dots,
-.card.pending .card-dots {
+.card.instrumental .card-dots {
   display: flex;
 }
-/* Waiting for lyrics: the note gently pulses. */
-.card.pending .card-note {
-  animation: pending-pulse 1.8s ease-in-out infinite;
+/* Waiting for lyrics: the Glowline "Finding lyrics…" indicator. */
+.ld-mini {
+  display: none;
+  width: 20px;
+  height: 20px;
+  flex: none;
+  overflow: visible;
+  color: #f4f1ec;
 }
-@keyframes pending-pulse {
-  50% {
-    opacity: 0.55;
+.card.pending .ld-mini {
+  display: block;
+}
+.ld-mini-arc {
+  transform-box: fill-box;
+  transform-origin: center;
+  stroke-dasharray: 30 70;
+  animation: ld-mini-spin 1.6s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+}
+.ld-mini-sing {
+  stroke-dasharray: 100 102;
+  stroke-dashoffset: 101;
+  animation: ld-mini-sing 1.6s ease-in-out infinite;
+}
+@keyframes ld-mini-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes ld-mini-sing {
+  0% {
+    stroke-dashoffset: 101;
+    opacity: 1;
+  }
+  60%,
+  75% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+  100% {
+    stroke-dashoffset: 0;
+    opacity: 0;
   }
 }
 
@@ -610,6 +646,34 @@ body {
 .winctl .btn-close:hover {
   background: rgba(220, 60, 60, 0.85);
 }
+/* Shown once a downloaded update is waiting (see updater.rs). */
+.update-pill {
+  appearance: none;
+  margin: 0 4px 0 0;
+  padding: 0 14px;
+  height: 36px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(20, 18, 24, 0.45);
+  -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: blur(24px);
+  color: var(--text);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 150ms ease;
+}
+.update-pill[hidden] {
+  display: none;
+}
+.update-pill:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+.update-pill:disabled {
+  cursor: progress;
+  opacity: 0.6;
+}
 /* Full screen shows "shrink to window"; window mode shows "grow to full screen". */
 .app[data-window="window"] .winctl .i-shrink,
 .app:not([data-window="window"]) .winctl .i-grow {
@@ -622,6 +686,9 @@ body {
 /* Keep the "unsynced" tag clear of the controls. */
 .unsynced {
   right: 140px;
+}
+.app.update-ready .unsynced {
+  right: 330px;
 }
 
 /* ---------------------------------------------------------------- toast */
@@ -906,8 +973,14 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .bg-drift,
   .bg-gradient i,
-  .card.pending .card-note {
+  .ld-mini * {
     animation: none;
+  }
+  .ld-mini-arc {
+    stroke-dasharray: none;
+  }
+  .ld-mini-sing {
+    opacity: 0;
   }
   .line,
   .line .w {

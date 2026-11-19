@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Halo Lyrics",
-  "version": "0.1.0",
+  "productName": "Glowline",
+  "version": "0.2.0",
   "identifier": "app.halolyrics.desktop",
   "build": {
     "beforeDevCommand": "npm run dev",
@@ -14,7 +14,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "Halo Lyrics",
+        "title": "Glowline",
         "url": "index.html",
         "width": 1280,
         "height": 800,
@@ -32,10 +32,15 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["msi", "nsis", "dmg", "app"],
+    "targets": [
+      "msi",
+      "nsis",
+      "dmg",
+      "app"
+    ],
     "category": "Music",
     "shortDescription": "Full-screen lyrics for whatever is playing",
-    "longDescription": "Halo Lyrics turns your screen into an ambient lyrics mode for whatever song is playing, using the operating system's media controls.",
+    "longDescription": "Glowline turns your screen into an ambient lyrics mode for whatever song is playing, using the operating system's media controls.",
     "copyright": "Copyright © 2026 HARSHAN-DEVHUB. MIT License.",
     "icon": [
       "icons/32x32.png",
@@ -45,10 +50,25 @@
       "icons/icon.ico"
     ],
     "windows": {
-      "webviewInstallMode": { "type": "downloadBootstrapper" }
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper"
+      }
     },
     "macOS": {
       "minimumSystemVersion": "11.0"
+    },
+    "publisher": "HARSHAN-DEVHUB",
+    "homepage": "https://github.com/HARSHAN-DEVHUB/glowline-releases"
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDNFODRCM0E1QjUwODM4MUUKUldRZU9BaTFwYk9FUGcwaU5ZR3AydnJEaGpvVno5cUVReEYxbXM0Q3dtT3Z1VmQzK09rK0JCTVAK",
+      "endpoints": [
+        "https://github.com/HARSHAN-DEVHUB/glowline-releases/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
     }
   }
 }

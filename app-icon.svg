@@ -1,17 +1,28 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <title>Glowline</title>
   <defs>
-    <radialGradient id="bg" cx="50%" cy="38%" r="75%">
-      <stop offset="0" stop-color="#2a1d24"/>
-      <stop offset="0.55" stop-color="#141117"/>
-      <stop offset="1" stop-color="#09090c"/>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#17161C"/><stop offset="1" stop-color="#09090C"/>
+    </linearGradient>
+    <radialGradient id="spot" cx="512" cy="452" r="360" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFD9B0" stop-opacity=".16"/>
+      <stop offset="1" stop-color="#FFD9B0" stop-opacity="0"/>
     </radialGradient>
-    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
-      <stop offset="0.55" stop-color="#f2b38a" stop-opacity="0"/>
-      <stop offset="0.72" stop-color="#f2b38a" stop-opacity="0.28"/>
-      <stop offset="0.9" stop-color="#f2b38a" stop-opacity="0"/>
-    </radialGradient>
+    <linearGradient id="glow" x1="330" y1="280" x2="700" y2="640" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFB870"/><stop offset=".5" stop-color="#FF6F8E"/><stop offset="1" stop-color="#8E7DFF"/>
+    </linearGradient>
+    <filter id="soft" filterUnits="userSpaceOnUse" x="0" y="0" width="1024" height="1024"><feGaussianBlur stdDeviation="38"/></filter>
+    <filter id="near" filterUnits="userSpaceOnUse" x="0" y="0" width="1024" height="1024"><feGaussianBlur stdDeviation="12"/></filter>
+    <clipPath id="sq"><rect x="100" y="100" width="824" height="824" rx="186"/></clipPath>
   </defs>
-  <rect x="32" y="32" width="960" height="960" rx="216" fill="url(#bg)"/>
-  <circle cx="512" cy="512" r="400" fill="url(#glow)"/>
-  <circle cx="512" cy="512" r="268" fill="none" stroke="#f4f1ec" stroke-width="84"/>
+  <g clip-path="url(#sq)">
+    <rect x="100" y="100" width="824" height="824" fill="url(#bg)"/>
+    <rect x="100" y="100" width="824" height="824" fill="url(#spot)"/>
+    <circle cx="512" cy="452" r="145" fill="none" stroke="url(#glow)" stroke-width="90" opacity=".75" filter="url(#soft)"/>
+    <circle cx="512" cy="452" r="145" fill="none" stroke="url(#glow)" stroke-width="56" opacity=".8" filter="url(#near)"/>
+    <path d="M322 707H702" stroke="url(#glow)" stroke-width="50" stroke-linecap="round" opacity=".45" filter="url(#near)"/>
+    <circle cx="512" cy="452" r="145" fill="none" stroke="#F4F1EC" stroke-width="45"/>
+    <path d="M322 707H702" stroke="#F4F1EC" stroke-width="45" stroke-linecap="round"/>
+  </g>
+  <rect x="100.5" y="100.5" width="823" height="823" rx="185.5" fill="none" stroke="#FFFFFF" stroke-opacity=".07"/>
 </svg>
